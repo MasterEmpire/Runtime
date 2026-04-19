@@ -20,18 +20,19 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            var hasPayload by remember { 
-                mutableStateOf(getSharedPreferences("speedster_prefs", MODE_PRIVATE).getBoolean("has_payload", false)) 
-            }
-            var payloadInstance by remember { mutableStateOf<DynamicEntry?>(null) }
             val context = LocalContext.current
+            val prefs = remember { context.getSharedPreferences("speedster_prefs", MODE_PRIVATE) }
+            
+            // Attempt to recover payload on start
+            var payloadInstance by remember {
+                mutableStateOf(if (prefs.getBoolean("has_payload", false)) PayloadLoader.loadExistingPayload(context) else null)
+            }
 
-            if (hasPayload && payloadInstance != null) {
+            if (payloadInstance != null) {
                 payloadInstance!!.Render(context)
             } else {
                 LobbyScreen(onPayloadLoaded = { 
                     payloadInstance = it
-                    hasPayload = true
                 })
             }
         }
