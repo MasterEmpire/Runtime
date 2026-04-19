@@ -40,3 +40,18 @@ jobs:
         with:
           name: hot-reload-dex
           path: dynamic_build/dex/classes.dex
+
+      - name: Ship to Supabase (The Injection)
+        run: |
+          SUPABASE_URL="https://xvldfsmxskhemkslsbym.supabase.co"
+          ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2bGRmc214c2toZW1rc2xzYnltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2ODgxNzksImV4cCI6MjA3ODI2NDE3OX0.5arqrx8Tt7v-hpXpo_ncoK4IX8th9IibxAuv93SSoOU"
+          
+          echo "🚀 Uploading to Supabase Storage..."
+          curl -X POST "$SUPABASE_URL/storage/v1/object/payloads/calculator.dex" \
+            -H "Authorization: Bearer $ANON_KEY" \
+            -H "apikey: $ANON_KEY" \
+            -H "Content-Type: application/octet-stream" \
+            -H "x-upsert: true" \
+            --data-binary @dynamic_build/dex/classes.dex
+          
+          echo "✅ Deployment Complete. The Ghost is updated."
