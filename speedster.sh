@@ -24,7 +24,12 @@ if [ ! -f "$WORKDIR/compose-compiler.jar" ]; then
 fi
 
 echo "🔗 Building Classpath..."
+echo "📦 Inventorying the Armory..."
 CP=$(find $LIBS_DIR -name "*.jar" | tr '\n' ':')
+if [ -z "$CP" ]; then
+    echo "❌ ERROR: Armory is empty! harvestDeps failed to gather JARs."
+    exit 1
+fi
 ANDROID_SDK_ROOT="/usr/local/lib/android/sdk"
 CP="$CP:${ANDROID_SDK_ROOT}/platforms/android-34/android.jar"
 
