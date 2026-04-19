@@ -25,15 +25,15 @@ class CalculatorEngine {
         val operand2 = display.toDoubleOrNull() ?: return
         val op1 = operand1 ?: return
         
-        val result = when (pendingOperator) {
-            "+" -> op1 + operand2
-            "-" -> op1 - operand2
-            "×" -> op1 * operand2
-            "÷" -> if (operand2 != 0.0) op1 / operand2 else "Error"
+        val resultText = when (pendingOperator) {
+            "+" -> (op1 + operand2).toString()
+            "-" -> (op1 - operand2).toString()
+            "×" -> (op1 * operand2).toString()
+            "÷" -> if (operand2 != 0.0) (op1 / operand2).toString() else "Error"
             else -> return
         }
 
-        display = result.toString().removeSuffix(".0")
+        display = resultText.removeSuffix(".0")
         operand1 = null
         pendingOperator = null
         shouldResetDisplay = true
