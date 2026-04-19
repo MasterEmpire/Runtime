@@ -4,6 +4,7 @@ plugins {
 }
 
 android {
+    namespace "com.speedster"
     namespace 'com.conduit.app'
     compileSdk 34
 
@@ -48,6 +49,15 @@ android {
     kotlinOptions {
         jvmTarget = '17'
     }
+}
+
+// Task to harvest dependencies for the Speedster Forge
+tasks.register("harvestDeps", Copy) {
+    from configurations.implementation
+    from configurations.runtimeClasspath
+    include "**/*.jar"
+    into "build/harvested_libs"
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
 dependencies {
