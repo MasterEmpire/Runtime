@@ -32,4 +32,23 @@ object PayloadLoader {
         val prefs = context.getSharedPreferences("speedster_prefs", Context.MODE_PRIVATE)
         prefs.edit().putBoolean("has_payload", false).apply()
     }
+
+    fun loadExistingPayload(context: Context): DynamicEntry? {
+        val internalDex = File(context.codeCacheDir, "payload.dex")
+        if (!internalDex.exists()) return null
+        
+        return try {
+            val classLoader = DexClassLoader(
+                internalDex.absolutePath,
+                context.codeCacheDir.absolutePath,
+                null,
+                context.classLoader
+            )
+            val clazz = classLoader.loadClass(PAYLOAD_CLASS)
+            clazz.getDeclaredConstructor().newInstance() as? DynamicEntry
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 }
