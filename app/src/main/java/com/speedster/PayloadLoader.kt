@@ -27,6 +27,26 @@ object PayloadLoader {
         }
     }
 
+    fun downloadAndLoad(context: Context, url: String, onComplete: (DynamicEntry?) -> Unit) {
+        Thread {
+            try {
+                val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                val input = connection.inputStream
+                val tempFile = File(context.cacheDir, "downloaded.dex")
+                tempFile.outputStream().use { input.copyTo(it) }
+                
+                val loaded = loadPayload(context, tempFile)
+                // Move back to main thread for UI update
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    onComplete(loaded)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                android.os.Handler(android.os.Looper.getMainLooper()).post { onComplete(null) }
+            }
+        }.start()
+    }
+
     fun clearPayload(context: Context) {
         File(context.codeCacheDir, "payload.dex").delete()
         val prefs = context.getSharedPreferences("speedster_prefs", Context.MODE_PRIVATE)
