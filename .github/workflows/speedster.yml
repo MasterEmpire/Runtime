@@ -49,11 +49,11 @@ jobs:
           chmod +x speedster.sh
           ./speedster.sh
 
-      - name: Upload Dex Artifact
+      - name: Upload Bundle Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hot-reload-dex
-          path: dynamic_build/dex/classes.dex
+          name: hot-reload-bundle
+          path: bundle.zip
 
       - name: Ship to Supabase (The Injection)
         run: |
@@ -61,9 +61,9 @@ jobs:
           RESPONSE=$(curl -s -o response_body.txt -w "%{http_code}" -X POST "$SUPABASE_URL/storage/v1/object/payloads/$PAYLOAD_FILENAME" \
             -H "Authorization: Bearer $ANON_KEY" \
             -H "apikey: $ANON_KEY" \
-            -H "Content-Type: application/octet-stream" \
+            -H "Content-Type: application/zip" \
             -H "x-upsert: true" \
-            --data-binary @dynamic_build/dex/classes.dex)
+            --data-binary @bundle.zip)
           
           if [ "$RESPONSE" -eq 200 ]; then
             echo "✅ Storage Upload Complete. HTTP $RESPONSE"
