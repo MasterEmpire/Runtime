@@ -13,7 +13,7 @@ class PayloadEntry : DynamicEntry {
     enum class SetupStep { HOME, OVERLAY, ACCESSIBILITY, READY }
 
     @Composable
-    override fun Render(context: Context) {
+    override fun Render(context: Context, resDir: File) {
         val engine = remember { LauncherEngine(context) }
         var apps by remember { mutableStateOf<List<AppModel>>(emptyList()) }
         var currentStep by remember { mutableStateOf(SetupStep.HOME) }
