@@ -2,7 +2,9 @@ package com.speedster.payload
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
+import android.content.pm.LauncherApps
+import android.os.Process
+import android.os.UserManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
@@ -17,20 +19,26 @@ data class AppModel(
 )
 
 class LauncherEngine(private val context: Context) {
-    private val pm: PackageManager = context.packageManager
+    private val launcherApps = context.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+    private val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
 
     fun getInstalledApps(): List<AppModel> {
-        val intent = Intent(Intent.ACTION_MAIN, null).apply {
-            addCategory(Intent.CATEGORY_LAUNCHER)
-        }
-        
-        return pm.queryIntentActivities(intent, 0)
-            .mapNotNull { info ->
-                val packageName = info.activityInfo.packageName
-                val label = info.loadLabel(pm).toString()
-                val icon = drawableToBitmap(info.loadIcon(pm))
-                AppModel(label, packageName, icon)
+        val allApps = mutableListOf<AppModel>()
+        val profiles = userManager.userProfiles
+
+        for (profile in profiles) {
+            val activities = launcherApps.getActivityList(null, profile)
+            for (info in activities) {
+                val label = info.label.toString()
+                val packageName = info.componentName.packageName
+                // Get icon for the specific density
+                val icon = drawableToBitmap(info.getIcon(0))
+                
+                allApps.add(AppModel(label, packageName, icon))
             }
+        }
+
+        return allApps
             .distinctBy { it.packageName }
             .sortedBy { it.label.lowercase() }
     }
