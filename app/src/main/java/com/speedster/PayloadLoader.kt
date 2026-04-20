@@ -4,14 +4,38 @@ import android.content.Context
 import dalvik.system.DexClassLoader
 import java.io.File
 
+import java.util.zip.ZipInputStream
+import java.io.FileInputStream
+import java.io.FileOutputStream
+
 object PayloadLoader {
     private const val PAYLOAD_CLASS = "com.speedster.payload.PayloadEntry"
     
-    fun loadPayload(context: Context, dexFile: File): DynamicEntry? {
+    fun getBundleDir(context: Context) = File(context.filesDir, "payload_bundle")
+    fun getResDir(context: Context) = File(getBundleDir(context), "res")
+
+    fun loadPayload(context: Context, bundleZip: File): DynamicEntry? {
         return try {
-            val internalDex = File(context.codeCacheDir, "payload.dex")
-            dexFile.copyTo(internalDex, overwrite = true)
-            
+            val bundleDir = getBundleDir(context)
+            bundleDir.deleteRecursively()
+            bundleDir.mkdirs()
+
+            // Unzip the bundle
+            ZipInputStream(FileInputStream(bundleZip)).use { zis ->
+                var entry = zis.nextEntry
+                while (entry != null) {
+                    val newFile = File(bundleDir, entry.name)
+                    if (entry.isDirectory) {
+                        newFile.mkdirs()
+                    } else {
+                        newFile.parentFile?.mkdirs()
+                        FileOutputStream(newFile).use { fos -> zis.copyTo(fos) }
+                    }
+                    entry = zis.nextEntry
+                }
+            }
+
+            val internalDex = File(bundleDir, "classes.dex")
             val classLoader = DexClassLoader(
                 internalDex.absolutePath,
                 context.codeCacheDir.absolutePath,
@@ -32,14 +56,11 @@ object PayloadLoader {
             try {
                 val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
                 val input = connection.inputStream
-                val tempFile = File(context.cacheDir, "downloaded.dex")
+                val tempFile = File(context.cacheDir, "bundle.zip")
                 tempFile.outputStream().use { input.copyTo(it) }
                 
                 val loaded = loadPayload(context, tempFile)
-                // Move back to main thread for UI update
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    onComplete(loaded)
-                }
+                android.os.Handler(android.os.Looper.getMainLooper()).post { onComplete(loaded) }
             } catch (e: Exception) {
                 e.printStackTrace()
                 android.os.Handler(android.os.Looper.getMainLooper()).post { onComplete(null) }
@@ -48,13 +69,13 @@ object PayloadLoader {
     }
 
     fun clearPayload(context: Context) {
-        File(context.codeCacheDir, "payload.dex").delete()
-        val prefs = context.getSharedPreferences("speedster_prefs", Context.MODE_PRIVATE)
-        prefs.edit().putBoolean("has_payload", false).apply()
+        getBundleDir(context).deleteRecursively()
+        context.getSharedPreferences("speedster_prefs", Context.MODE_PRIVATE)
+            .edit().putBoolean("has_payload", false).apply()
     }
 
     fun loadExistingPayload(context: Context): DynamicEntry? {
-        val internalDex = File(context.codeCacheDir, "payload.dex")
+        val internalDex = File(getBundleDir(context), "classes.dex")
         if (!internalDex.exists()) return null
         
         return try {
