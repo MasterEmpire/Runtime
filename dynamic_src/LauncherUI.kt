@@ -14,14 +14,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.graphics.drawable.toBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
-fun LauncherScreen(apps: List<AppModel>, onAppClick: (String) -> Unit) {
+fun LauncherScreen(apps: List<AppModel>, engine: LauncherEngine, onAppClick: (String) -> Unit) {
     Scaffold(
         containerColor = Color(0xFF0A0A0A)
     ) {
@@ -29,15 +34,24 @@ fun LauncherScreen(apps: List<AppModel>, onAppClick: (String) -> Unit) {
             contentPadding = PaddingValues(vertical = 16.dp),
             modifier = Modifier.padding(it).fillMaxSize()
         ) {
-            items(apps) { app ->
-                AppIconItem(app, onAppClick)
+            items(apps, key = { it.packageName }) { app ->
+                AppIconItem(app, engine, onAppClick)
             }
         }
     }
 }
 
 @Composable
-fun AppIconItem(app: AppModel, onClick: (String) -> Unit) {
+fun AppIconItem(app: AppModel, engine: LauncherEngine, onClick: (String) -> Unit) {
+    var iconBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+
+    LaunchedEffect(app.packageName) {
+        withContext(Dispatchers.IO) {
+            val drawable = engine.getAppIcon(app.packageName)
+            iconBitmap = drawable.toBitmap(128, 128) // Fixed size = less memory
+        }
+    }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -45,13 +59,17 @@ fun AppIconItem(app: AppModel, onClick: (String) -> Unit) {
             .clickable { onClick(app.packageName) }
             .padding(horizontal = 20.dp, vertical = 12.dp)
     ) {
-        Image(
-            bitmap = app.icon.asImageBitmap(),
-            contentDescription = null,
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(8.dp))
-        )
+        if (iconBitmap != null) {
+            Image(
+                bitmap = iconBitmap!!.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+            )
+        } else {
+            Box(modifier = Modifier.size(48.dp).background(Color.DarkGray, RoundedCornerShape(8.dp)))
+        }
         Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = app.label,
