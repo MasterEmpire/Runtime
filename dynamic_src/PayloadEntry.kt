@@ -68,7 +68,7 @@ class PayloadEntry : DynamicEntry {
                     }
                 }
                 LauncherScreen(apps = apps, engine = engine, onAppClick = { engine.launchApp(it) })
-            }
+                        }
         }
     }
 }
