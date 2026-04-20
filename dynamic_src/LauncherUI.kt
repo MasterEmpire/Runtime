@@ -23,15 +23,13 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun LauncherScreen(apps: List<AppModel>, onAppClick: (String) -> Unit) {
+    import androidx.compose.foundation.lazy.LazyColumn
     Scaffold(
         containerColor = Color(0xFF0A0A0A)
     ) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(4),
-            contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            modifier = Modifier.padding(it)
+        LazyColumn(
+            contentPadding = PaddingValues(vertical = 16.dp),
+            modifier = Modifier.padding(it).fillMaxSize()
         ) {
             items(apps) { app ->
                 AppIconItem(app, onAppClick)
@@ -42,62 +40,53 @@ fun LauncherScreen(apps: List<AppModel>, onAppClick: (String) -> Unit) {
 
 @Composable
 fun AppIconItem(app: AppModel, onClick: (String) -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick(app.packageName) }
-            .padding(4.dp)
+            .padding(horizontal = 20.dp, vertical = 12.dp)
     ) {
         Image(
             bitmap = app.icon.asImageBitmap(),
             contentDescription = null,
             modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color.White.copy(alpha = 0.03f))
+                .size(48.dp)
+                .clip(RoundedCornerShape(8.dp))
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = app.label,
             color = Color.White,
-            fontSize = 10.sp,
+            fontSize = 16.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Normal
         )
     }
 }
 
 @Composable
-fun PermissionScreen(onGrantClick: () -> Unit) {
+fun OnboardingStep(title: String, desc: String, buttonText: String, onAction: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .padding(24.dp),
+            .padding(32.dp),
         verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.Start
     ) {
-        Text(
-            "Permissions Required",
-            color = Color.White,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            "To display and launch apps, we need system-level access. Please enable the required permissions in the next screen.",
-            color = Color.Gray,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(32.dp))
+        Text(title, color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Black)
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(desc, color = Color.Gray, fontSize = 16.sp, lineHeight = 24.sp)
+        Spacer(modifier = Modifier.height(48.dp))
         Button(
-            onClick = onGrantClick,
+            onClick = onAction,
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3D5AFE))
         ) {
-            Text("Open System Settings")
+            Text(buttonText, fontWeight = FontWeight.Bold)
         }
     }
 }
