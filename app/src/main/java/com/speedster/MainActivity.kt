@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
             }
 
             if (payloadInstance != null) {
-                payloadInstance!!.Render(context)
+                payloadInstance!!.Render(context, PayloadLoader.getResDir(context))
             } else {
                 LobbyScreen(onPayloadLoaded = { 
                     payloadInstance = it
