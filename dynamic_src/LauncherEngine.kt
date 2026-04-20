@@ -14,8 +14,7 @@ import android.provider.Settings
 
 data class AppModel(
     val label: String,
-    val packageName: String,
-    val icon: Bitmap
+    val packageName: String
 )
 
 class LauncherEngine(private val context: Context) {
@@ -31,10 +30,8 @@ class LauncherEngine(private val context: Context) {
             for (info in activities) {
                 val label = info.label.toString()
                 val packageName = info.componentName.packageName
-                // Get icon for the specific density
-                val icon = drawableToBitmap(info.getIcon(0))
                 
-                allApps.add(AppModel(label, packageName, icon))
+                allApps.add(AppModel(label, packageName))
             }
         }
 
@@ -43,7 +40,16 @@ class LauncherEngine(private val context: Context) {
             .sortedBy { it.label.lowercase() }
     }
 
+    fun getAppIcon(packageName: String): android.graphics.drawable.Drawable {
+        return try {
+            context.packageManager.getApplicationIcon(packageName)
+        } catch (e: Exception) {
+            context.packageManager.defaultActivityIcon
+        }
+    }
+
     fun launchApp(packageName: String) {
+        val pm = context.packageManager
         val intent = pm.getLaunchIntentForPackage(packageName)
         intent?.let { 
             it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
