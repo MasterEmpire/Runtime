@@ -34,10 +34,16 @@ class PayloadEntry : DynamicEntry {
             )
             SetupStep.READY -> {
                 LaunchedEffect(Unit) {
-                    apps = engine.getInstalledApps()
+                    withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        val loadedApps = engine.getInstalledApps()
+                        withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            apps = loadedApps
+                        }
+                    }
                 }
                 LauncherScreen(
                     apps = apps,
+                    engine = engine,
                     onAppClick = { pkg -> engine.launchApp(pkg) }
                 )
             }
