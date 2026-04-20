@@ -4,9 +4,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 
 object PowerIcons {
-    val Power = ImageVector.Builder(name = "Power", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f).path(fill = Color.White) {
+    val Power = ImageVector.Builder(name = "Power", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f).path(fill = SolidColor(Color.White)) {
         moveTo(16.56f, 5.44f)
         lineTo(15.11f, 6.89f)
         curveTo(16.84f, 7.94f, 18f, 9.83f, 18f, 12f)
@@ -26,7 +27,7 @@ object PowerIcons {
         close()
     }.build()
 
-    val Restart = ImageVector.Builder(name = "Restart", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f).path(fill = Color.White) {
+    val Restart = ImageVector.Builder(name = "Restart", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f).path(fill = SolidColor(Color.White)) {
         moveTo(2f, 12f)
         curveTo(2f, 16.97f, 6.03f, 21f, 11f, 21f)
         curveTo(13.39f, 21f, 15.68f, 20.06f, 17.4f, 18.4f)
@@ -44,7 +45,7 @@ object PowerIcons {
         close()
     }.build()
 
-    val Emergency = ImageVector.Builder(name = "Emergency", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f).path(fill = Color.White) {
+    val Emergency = ImageVector.Builder(name = "Emergency", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f).path(fill = SolidColor(Color.White)) {
         moveTo(12f, 8f)
         curveTo(14.21f, 8f, 16f, 9.79f, 16f, 12f)
         curveTo(16f, 14.21f, 14.21f, 16f, 12f, 16f)
@@ -74,7 +75,7 @@ object PowerIcons {
         close()
     }.build()
 
-    val Lockdown = ImageVector.Builder(name = "Lockdown", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f).path(fill = Color.White) {
+    val Lockdown = ImageVector.Builder(name = "Lockdown", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f).path(fill = SolidColor(Color.White)) {
         moveTo(12f, 17f)
         curveTo(13.1f, 17f, 14f, 16.11f, 14f, 15f)
         curveTo(14f, 13.89f, 13.11f, 13f, 12f, 13f)
