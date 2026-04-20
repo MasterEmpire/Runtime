@@ -28,6 +28,11 @@ class PayloadEntry : DynamicEntry {
             }
         }
 
+        // Run initial check when entering the composition
+        LaunchedEffect(Unit) {
+            updateStep()
+        }
+
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) updateStep()
@@ -65,6 +70,5 @@ class PayloadEntry : DynamicEntry {
                 LauncherScreen(apps = apps, engine = engine, onAppClick = { engine.launchApp(it) })
             }
         }
-    }
     }
 }
