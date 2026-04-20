@@ -50,4 +50,14 @@ $BUILD_TOOLS_DIR/d8 \
     --lib ${ANDROID_SDK_ROOT}/platforms/android-34/android.jar \
     $(find $CLASSES_DIR -name "*.class")
 
-echo "✅ PAYLOAD READY: $DEX_DIR/classes.dex"
+echo "📦 PACKAGING BUNDLE..."
+BUNDLE_DIR="$WORKDIR/bundle"
+mkdir -p $BUNDLE_DIR/res
+cp $DEX_DIR/classes.dex $BUNDLE_DIR/
+if [ -d "dynamic_res" ]; then
+    cp -r dynamic_res/* $BUNDLE_DIR/res/
+fi
+
+cd $BUNDLE_DIR && zip -r ../../bundle.zip . && cd ../..
+
+echo "✅ BUNDLE READY: bundle.zip"
