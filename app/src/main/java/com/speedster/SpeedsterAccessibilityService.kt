@@ -6,7 +6,10 @@ import android.accessibilityservice.AccessibilityService
 import android.view.KeyEvent
 
 class SpeedsterAccessibilityService : AccessibilityService() {
-    override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) {}
+    override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) {
+        event?.let { DynamicEntry.accessibilityInterceptor?.invoke(it) }
+    }
+
     override fun onInterrupt() {}
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
@@ -15,5 +18,6 @@ class SpeedsterAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        // Bridge is hot
     }
 }
