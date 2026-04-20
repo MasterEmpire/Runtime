@@ -2,8 +2,6 @@ package com.speedster.payload
 
 import android.content.Context
 import android.content.Intent
-import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.LauncherApps
 import android.os.Process
@@ -14,7 +12,6 @@ import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
-import android.provider.Settings
 
 data class AppModel(
     val label: String,
