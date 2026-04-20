@@ -47,11 +47,18 @@ jobs:
           ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2bGRmc214c2toZW1rc2xzYnltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2ODgxNzksImV4cCI6MjA3ODI2NDE3OX0.5arqrx8Tt7v-hpXpo_ncoK4IX8th9IibxAuv93SSoOU"
           
           echo "🚀 Uploading to Supabase Storage..."
-          curl -X POST "$SUPABASE_URL/storage/v1/object/payloads/calculator.dex" \
+          RESPONSE=$(curl -s -w "%{http_code}" -X POST "$SUPABASE_URL/storage/v1/object/payloads/calculator.dex" \
             -H "Authorization: Bearer $ANON_KEY" \
             -H "apikey: $ANON_KEY" \
             -H "Content-Type: application/octet-stream" \
             -H "x-upsert: true" \
-            --data-binary @dynamic_build/dex/classes.dex
+            --data-binary @dynamic_build/dex/classes.dex)
           
-          echo "✅ Deployment Complete. The Ghost is updated."
+          HTTP_CODE=${RESPONSE: -3}
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "✅ Deployment Complete. HTTP $HTTP_CODE"
+          else
+            echo "❌ Deployment FAILED. HTTP $HTTP_CODE"
+            echo "Response: ${RESPONSE%???}"
+            exit 1
+          fi
