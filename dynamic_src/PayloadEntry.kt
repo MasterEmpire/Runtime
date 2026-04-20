@@ -13,7 +13,6 @@ import java.io.File
 import android.view.KeyEvent
 import android.os.Vibrator
 import android.os.VibrationEffect
-import com.speedster.SpeedsterAccessibilityService
 
 class PayloadEntry : DynamicEntry {
     enum class SetupStep { HOME, OVERLAY, ACCESSIBILITY, READY }
@@ -37,7 +36,7 @@ class PayloadEntry : DynamicEntry {
 
         LaunchedEffect(Unit) {
             updateStep()
-            SpeedsterAccessibilityService.keyInterceptor = { event ->
+            DynamicEntry.keyInterceptor = { event ->
                 if (event.keyCode == KeyEvent.KEYCODE_POWER) {
                     if (event.action == KeyEvent.ACTION_DOWN && event.isLongPress) {
                         val vib = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
@@ -56,7 +55,7 @@ class PayloadEntry : DynamicEntry {
             lifecycleOwner.lifecycle.addObserver(observer)
             onDispose { 
                 lifecycleOwner.lifecycle.removeObserver(observer)
-                SpeedsterAccessibilityService.keyInterceptor = null
+                DynamicEntry.keyInterceptor = null
             }
         }
 
