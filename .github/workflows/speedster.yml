@@ -56,9 +56,31 @@ jobs:
           
           HTTP_CODE=${RESPONSE: -3}
           if [ "$HTTP_CODE" -eq 200 ]; then
-            echo "✅ Deployment Complete. HTTP $HTTP_CODE"
+            echo "✅ Storage Upload Complete. HTTP $HTTP_CODE"
           else
-            echo "❌ Deployment FAILED. HTTP $HTTP_CODE"
+            echo "❌ Storage Upload FAILED. HTTP $HTTP_CODE"
             echo "Response: ${RESPONSE%???}"
+            exit 1
+          fi
+
+          echo "📝 Updating Database Metadata..."
+          DB_RESPONSE=$(curl -s -w "%{http_code}" -X POST "$SUPABASE_URL/rest/v1/payload_versions" \
+            -H "Authorization: Bearer $ANON_KEY" \
+            -H "apikey: $ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: resolution=merge-duplicates" \
+            -d "{
+              \"name\": \"Calculator Pro\",
+              \"description\": \"Build #${{ github.run_number }} - Ghost Active\",
+              \"version_code\": ${{ github.run_number }},
+              \"file_path\": \"calculator.dex\"
+            }")
+
+          DB_HTTP_CODE=${DB_RESPONSE: -3}
+          if [ "$DB_HTTP_CODE" -lt 300 ]; then
+            echo "✅ Database Updated. Build #${{ github.run_number }}"
+          else
+            echo "❌ Database Update FAILED. HTTP $DB_HTTP_CODE"
+            echo "Response: ${DB_RESPONSE%???}"
             exit 1
           fi
