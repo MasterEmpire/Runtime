@@ -2,13 +2,22 @@ name: Cortex Speedster Test
 
 on:
   workflow_dispatch:
+    inputs:
+      app_label:
+        description: 'Display name in the loader'
+        required: true
+        default: 'Calculator Pro'
+      file_name:
+        description: 'DEX filename (e.g. payload.dex)'
+        required: true
+        default: 'calculator.dex'
 
 jobs:
   build-hot-payload:
     runs-on: ubuntu-latest
     env:
-      PAYLOAD_NAME: "Calculator Pro"
-      PAYLOAD_FILENAME: "calculator.dex"
+      PAYLOAD_NAME: ${{ github.event.inputs.app_label }}
+      PAYLOAD_FILENAME: ${{ github.event.inputs.file_name }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
     steps:
