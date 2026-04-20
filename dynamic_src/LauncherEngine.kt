@@ -2,10 +2,14 @@ package com.speedster.payload
 
 import android.content.Context
 import android.content.Intent
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.LauncherApps
 import android.os.Process
 import android.os.UserManager
 import android.graphics.Bitmap
+import android.provider.Settings
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
@@ -77,6 +81,20 @@ class LauncherEngine(private val context: Context) {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(intent)
+    }
+
+    fun isHomeApp(): Boolean {
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val res = context.packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+        return res?.activityInfo?.packageName == context.packageName
+    }
+
+    fun hasOverlayPermission(): Boolean = Settings.canDrawOverlays(context)
+
+    fun isAccessibilityEnabled(): Boolean {
+        val expectedId = "${context.packageName}/com.speedster.SpeedsterAccessibilityService"
+        val enabledServices = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+        return enabledServices?.contains(expectedId) == true
     }
 
     private fun drawableToBitmap(drawable: Drawable): Bitmap {
