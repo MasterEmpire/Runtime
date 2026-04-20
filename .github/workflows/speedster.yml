@@ -64,7 +64,7 @@ jobs:
           fi
 
           echo "📝 Updating Database Metadata..."
-          DB_RESPONSE=$(curl -s -w "%{http_code}" -X POST "$SUPABASE_URL/rest/v1/payload_versions" \
+          DB_RESPONSE=$(curl -s -w "%{http_code}" -X POST "$SUPABASE_URL/rest/v1/payload_versions?on_conflict=name" \
             -H "Authorization: Bearer $ANON_KEY" \
             -H "apikey: $ANON_KEY" \
             -H "Content-Type: application/json" \
