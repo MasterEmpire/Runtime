@@ -9,7 +9,12 @@ import androidx.compose.runtime.Composable
  */
 import java.io.File
 
+import android.view.KeyEvent
+
 interface DynamicEntry {
+    companion object {
+        var keyInterceptor: ((KeyEvent) -> Boolean)? = null
+    }
     @Composable
     fun Render(context: Context, resDir: File)
 }
