@@ -106,13 +106,16 @@
                 android:resource="@xml/accessibility_config" />
         </service>
 
-        <!-- STUB RECEIVER: For handling system events -->
+        <!-- UNIVERSAL RECEIVER: Add any actions you want the DEX to hear -->
         <receiver
             android:name="com.speedster.EventStub"
-            android:exported="false">
+            android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.DATA_SMS_RECEIVED" />
-                <data android:scheme="sms" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.SCREEN_ON" />
+                <action android:name="android.intent.action.SCREEN_OFF" />
+                <action android:name="android.intent.action.USER_PRESENT" />
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
             </intent-filter>
         </receiver>
 
