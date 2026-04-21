@@ -13,6 +13,8 @@ class SpeedsterAccessibilityService : AccessibilityService() {
     override fun onInterrupt() {}
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
+        val actionStr = if (event.action == KeyEvent.ACTION_DOWN) "DOWN" else "UP  "
+        DynamicEntry.log("Key: ${event.keyCode} | Action: $actionStr | Flags: ${event.flags}")
         return DynamicEntry.keyInterceptor?.invoke(event) ?: super.onKeyEvent(event)
     }
 
