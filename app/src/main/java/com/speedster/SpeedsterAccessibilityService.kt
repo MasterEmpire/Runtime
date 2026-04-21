@@ -26,6 +26,12 @@ class SpeedsterAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        DynamicEntry.activeAccessibilityService = this
         // Bridge is hot
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        DynamicEntry.activeAccessibilityService = null
     }
 }
