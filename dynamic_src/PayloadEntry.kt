@@ -34,16 +34,28 @@ class PayloadEntry : DynamicEntry {
             }
         }
 
+        var lastPowerDown by remember { mutableLongStateOf(0L) }
+
         LaunchedEffect(Unit) {
             updateStep()
             DynamicEntry.keyInterceptor = { event ->
                 if (event.keyCode == KeyEvent.KEYCODE_POWER) {
-                    if (event.action == KeyEvent.ACTION_DOWN && event.isLongPress) {
-                        val vib = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                        vib.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
-                        showPowerMenu = true
-                        true
-                    } else false
+                    if (event.action == KeyEvent.ACTION_DOWN) {
+                        if (lastPowerDown == 0L) lastPowerDown = System.currentTimeMillis()
+                        
+                        val duration = System.currentTimeMillis() - lastPowerDown
+                        if (duration > 500) { // Long press threshold
+                            if (!showPowerMenu) {
+                                val vib = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                                vib.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                                showPowerMenu = true
+                            }
+                            true // Consume
+                        } else false
+                    } else {
+                        lastPowerDown = 0L
+                        showPowerMenu // If menu is showing, consume the UP event too
+                    }
                 } else false
             }
         }
