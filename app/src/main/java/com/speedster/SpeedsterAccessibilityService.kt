@@ -2,10 +2,26 @@ package com.speedster
 
 import android.view.accessibility.AccessibilityEvent
 import android.accessibilityservice.AccessibilityService
-
 import android.view.KeyEvent
+import android.view.WindowManager
+import android.graphics.PixelFormat
+import androidx.compose.ui.platform.ComposeView
+import androidx.lifecycle.*
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.SavedStateRegistryController
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.*
 
-class SpeedsterAccessibilityService : AccessibilityService() {
+class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, SavedStateRegistryOwner {
+    private val lifecycleRegistry = LifecycleRegistry(this)
+    private val savedStateRegistryController = SavedStateRegistryController.create(this)
+    override val lifecycle: Lifecycle get() = lifecycleRegistry
+    override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
+
+    private var overlayView: ComposeView? = null
+    private val windowManager by lazy { getSystemService(WINDOW_SERVICE) as WindowManager }
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) {
         event?.let { 
             // Hammer Secret: Log window changes to find the System UI's Power Menu
@@ -27,7 +43,47 @@ class SpeedsterAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         DynamicEntry.activeAccessibilityService = this
-        // Bridge is hot
+        
+        // Initialize Lifecycle for Compose
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+        savedStateRegistryController.performRestore(null)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+
+        // Universal UI Observer: Watches the DEX for new drawings
+        scope.launch {
+            snapshotFlow { DynamicEntry.overlayContent }.collect { content ->
+                if (content != null) showOverlay(content) else hideOverlay()
+            }
+        }
+    }
+
+    private fun showOverlay(content: @androidx.compose.runtime.Composable () -> Unit) {
+        if (overlayView != null) return
+        overlayView = ComposeView(this).apply {
+            setContent { content() }
+            ViewTreeLifecycleOwner.set(this, this@SpeedsterAccessibilityService)
+            ViewTreeSavedStateRegistryOwner.set(this, this@SpeedsterAccessibilityService)
+        }
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        )
+        windowManager.addView(overlayView, params)
+    }
+
+    private fun hideOverlay() {
+        overlayView?.let { windowManager.removeView(it); overlayView = null }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        hideOverlay()
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        DynamicEntry.activeAccessibilityService = null
+        scope.cancel()
     }
 
     override fun onDestroy() {
