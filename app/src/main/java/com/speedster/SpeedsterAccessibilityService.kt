@@ -12,6 +12,9 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.SavedStateRegistryController
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.*
+import androidx.lifecycle.ViewTreeLifecycleOwner
+import androidx.savedstate.ViewTreeSavedStateRegistryOwner
+import androidx.compose.runtime.Composable
 
 class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, SavedStateRegistryOwner {
     private val lifecycleRegistry = LifecycleRegistry(this)
@@ -51,7 +54,7 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Sa
 
         // Universal UI Observer: Watches the DEX for new drawings
         scope.launch {
-            snapshotFlow { DynamicEntry.overlayContent }.collect { content ->
+            snapshotFlow { DynamicEntry.overlayContent }.collect { content: (@Composable () -> Unit)? ->
                 if (content != null) showOverlay(content) else hideOverlay()
             }
         }
@@ -84,10 +87,5 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Sa
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
         DynamicEntry.activeAccessibilityService = null
         scope.cancel()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        DynamicEntry.activeAccessibilityService = null
     }
 }
