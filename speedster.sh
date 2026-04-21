@@ -42,6 +42,10 @@ $WORKDIR/kotlinc/bin/kotlinc \
     -Xplugin=$WORKDIR/compose-compiler.jar \
     -d $CLASSES_DIR
 
+echo "🧹 CLEANING DUPLICATES..."
+# Remove the interface class so the payload doesn't carry its own copy
+find $CLASSES_DIR -name "DynamicEntry*" -delete
+
 echo "🔩 CRUNCHING (Bytecode -> Dex)..."
 BUILD_TOOLS_DIR=$(ls -d ${ANDROID_SDK_ROOT}/build-tools/34.* | head -1)
 
