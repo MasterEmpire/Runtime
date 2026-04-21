@@ -19,6 +19,9 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun PowerMenuOverlay(onDismiss: () -> Unit) {
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        com.speedster.DynamicEntry.log("🎨 CUSTOM POWER MENU UI MOUNTED!")
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
