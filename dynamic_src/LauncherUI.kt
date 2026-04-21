@@ -23,6 +23,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
+import com.speedster.DynamicEntry
+import androidx.compose.ui.text.font.FontFamily
 
 @Composable
 fun LauncherScreen(apps: List<AppModel>, engine: LauncherEngine, onAppClick: (String) -> Unit) {
@@ -102,6 +108,49 @@ fun OnboardingStep(title: String, desc: String, buttonText: String, onAction: ()
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3D5AFE))
         ) {
             Text(buttonText, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+fun SystemLogOverlay(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val logs = DynamicEntry.systemLogs
+    
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.95f))
+            .padding(16.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("System Logs", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Row {
+                    Button(
+                        onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("logs", logs.joinToString("\n")))
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3D5AFE))
+                    ) { Text("Copy") }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+                    ) { Text("Close") }
+                }
+            }
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(logs.reversed()) { log ->
+                    Text(log, color = Color.Green, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                    Divider(color = Color.DarkGray, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 4.dp))
+                }
+            }
         }
     }
 }
