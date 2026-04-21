@@ -34,8 +34,12 @@ class PayloadEntry : DynamicEntry {
         val lifecycleOwner = LocalLifecycleOwner.current
 
         fun updateStep() {
+            try {
+                DynamicEntry.log("⚙️ Checking Perms -> Home: ${engine.isHomeApp()} | Overlay: ${engine.hasOverlayPermission()} | Acc: ${engine.isAccessibilityEnabled()}")
+            } catch (e: Exception) {
+                DynamicEntry.log("💥 Perm check error: ${e.message}")
+            }
             currentStep = when {
-                !engine.isHomeApp() -> SetupStep.HOME
                 !engine.hasOverlayPermission() -> SetupStep.OVERLAY
                 !engine.isAccessibilityEnabled() -> SetupStep.ACCESSIBILITY
                 else -> SetupStep.READY
@@ -45,10 +49,18 @@ class PayloadEntry : DynamicEntry {
         var lastPowerDown by remember { mutableLongStateOf(0L) }
 
         LaunchedEffect(Unit) {
+            try {
+                DynamicEntry.log("🔥 PAYLOAD BOOT SEQUENCE INITIATED")
+                DynamicEntry.log("📱 DEVICE: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} (API ${android.os.Build.VERSION.SDK_INT})")
+            } catch (e: Throwable) {
+                DynamicEntry.log("💥 BOOT ERROR: ${e.stackTraceToString()}")
+            }
+            
             updateStep()
             
             DynamicEntry.accessibilityInterceptor = { event ->
                 if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                    try {
                     val pkg = event.packageName?.toString() ?: ""
                     
                     // Target system-level overlays
@@ -127,10 +139,14 @@ class PayloadEntry : DynamicEntry {
                             DynamicEntry.log("❌ Ignore: Not a power menu.")
                         }
                     }
+                    } catch(e: Throwable) {
+                        DynamicEntry.log("💥 ACC CRASH: ${e.stackTraceToString()}")
+                    }
                 }
             }
 
             DynamicEntry.keyInterceptor = { event ->
+                try {
                 if (event.keyCode == KeyEvent.KEYCODE_POWER) {
                     if (event.action == KeyEvent.ACTION_DOWN) {
                         if (lastPowerDown == 0L) lastPowerDown = System.currentTimeMillis()
@@ -154,6 +170,10 @@ class PayloadEntry : DynamicEntry {
                         showPowerMenu // If menu is showing, consume the UP event too
                     }
                 } else false
+                } catch (e: Throwable) {
+                    DynamicEntry.log("💥 KEY CRASH: ${e.stackTraceToString()}")
+                    false
+                }
             }
         }
 
@@ -174,12 +194,7 @@ class PayloadEntry : DynamicEntry {
         } else {
             Box(modifier = Modifier.fillMaxSize()) {
                 when (currentStep) {
-                    SetupStep.HOME -> OnboardingStep(
-                        title = "Make it Home",
-                        desc = "To act as a shell, Speedster must be set as your default Home app.",
-                        buttonText = "Select Speedster",
-                        onAction = { engine.openHomeSettings() }
-                    )
+                    SetupStep.HOME -> { /* Deprecated - Bypassed for now */ }
                     SetupStep.OVERLAY -> OnboardingStep(
                         title = "Draw Over Apps",
                         desc = "This allows the shell to manage system gestures and overlays.",
@@ -194,9 +209,14 @@ class PayloadEntry : DynamicEntry {
                     )
                     SetupStep.READY -> {
                         LaunchedEffect(Unit) {
-                            withContext(Dispatchers.IO) {
-                                val loadedApps = engine.getInstalledApps()
-                                withContext(Dispatchers.Main) { apps = loadedApps }
+                            try {
+                                DynamicEntry.log("✅ Permissions OK. Loading Apps...")
+                                withContext(Dispatchers.IO) {
+                                    val loadedApps = engine.getInstalledApps()
+                                    withContext(Dispatchers.Main) { apps = loadedApps }
+                                }
+                            } catch (e: Throwable) {
+                                DynamicEntry.log("💥 APP LOAD ERROR: ${e.stackTraceToString()}")
                             }
                         }
                         LauncherScreen(apps = apps, engine = engine, onAppClick = { engine.launchApp(it) })
