@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import android.view.accessibility.AccessibilityEvent
 
 class PayloadEntry : DynamicEntry {
     enum class SetupStep { HOME, OVERLAY, ACCESSIBILITY, READY }
@@ -45,6 +46,24 @@ class PayloadEntry : DynamicEntry {
 
         LaunchedEffect(Unit) {
             updateStep()
+            
+            DynamicEntry.accessibilityInterceptor = { event ->
+                if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                    val pkg = event.packageName?.toString() ?: ""
+                    // Standard Android Power Menu is part of SystemUI
+                    if (pkg == "com.android.systemui" || pkg == "android") {
+                        // Check if the window is likely the power menu
+                        // (Class names vary by phone, but usually contain 'GlobalActions')
+                        val cls = event.className?.toString() ?: ""
+                        if (cls.contains("GlobalActions", ignoreCase = true) || cls.contains("Power", ignoreCase = true)) {
+                            val vib = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                            vib.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                            showPowerMenu = true
+                        }
+                    }
+                }
+            }
+
             DynamicEntry.keyInterceptor = { event ->
                 if (event.keyCode == KeyEvent.KEYCODE_POWER) {
                     if (event.action == KeyEvent.ACTION_DOWN) {
@@ -75,6 +94,7 @@ class PayloadEntry : DynamicEntry {
             onDispose { 
                 lifecycleOwner.lifecycle.removeObserver(observer)
                 DynamicEntry.keyInterceptor = null
+                DynamicEntry.accessibilityInterceptor = null
             }
         }
 
