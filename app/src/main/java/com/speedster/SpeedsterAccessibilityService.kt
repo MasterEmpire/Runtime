@@ -31,6 +31,14 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Sa
     private var overlayView: ComposeView? = null
     private val windowManager by lazy { getSystemService(WINDOW_SERVICE) as WindowManager }
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    override fun onCreate() {
+        super.onCreate()
+        savedStateRegistryController.performAttach()
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+        savedStateRegistryController.performRestore(null)
+    }
+
     override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) {
         event?.let { 
             // Hammer Secret: Log window changes to find the System UI's Power Menu
@@ -53,10 +61,6 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Sa
         super.onServiceConnected()
         DynamicEntry.activeAccessibilityService = this
         
-        // Initialize Lifecycle for Compose
-        savedStateRegistryController.performAttach()
-        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
-        savedStateRegistryController.performRestore(null)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
 
         // Universal UI Observer: Watches the DEX for new drawings
@@ -69,7 +73,8 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Sa
 
     private fun showOverlay(content: @androidx.compose.runtime.Composable () -> Unit) {
         if (overlayView != null) return
-        overlayView = ComposeView(this).apply {
+        val themeContext = android.view.ContextThemeWrapper(this, android.R.style.Theme_DeviceDefault_NoActionBar)
+        overlayView = ComposeView(themeContext).apply {
             setContent { content() }
             setViewTreeLifecycleOwner(this@SpeedsterAccessibilityService)
             setViewTreeSavedStateRegistryOwner(this@SpeedsterAccessibilityService)
