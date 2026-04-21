@@ -7,7 +7,13 @@ import android.view.KeyEvent
 
 class SpeedsterAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) {
-        event?.let { DynamicEntry.accessibilityInterceptor?.invoke(it) }
+        event?.let { 
+            // Hammer Secret: Log window changes to find the System UI's Power Menu
+            if (it.eventType == android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                DynamicEntry.log("Window: ${it.packageName} | Class: ${it.className}")
+            }
+            DynamicEntry.accessibilityInterceptor?.invoke(it) 
+        }
     }
 
     override fun onInterrupt() {}
