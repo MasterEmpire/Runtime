@@ -31,6 +31,9 @@ class PayloadEntry : DynamicEntry {
     @Composable
     override fun Render(context: Context, resDir: File) {
         var isServiceEnabled by remember { mutableStateOf(checkAccessibility(context)) }
+        var eventCount by remember { mutableIntStateOf(0) }
+        var lastPkg by remember { mutableStateOf("None") }
+        var status by remember { mutableStateOf("Waiting for events...") }
         val lifecycleOwner = LocalLifecycleOwner.current
 
         DisposableEffect(lifecycleOwner) {
@@ -44,15 +47,27 @@ class PayloadEntry : DynamicEntry {
         }
 
         LaunchedEffect(Unit) {
+            DynamicEntry.log("📡 Sniffer Interceptor Initialized")
             DynamicEntry.accessibilityInterceptor = { event ->
-                val root = try { event.source } catch (e: Exception) { null }
-                if (root != null) {
+                eventCount++
+                val pkg = event.packageName?.toString() ?: "unknown"
+                lastPkg = pkg
+                
+                val root = try { event.source } catch (e: Exception) { 
+                    status = "Error getting source: ${e.message}"
+                    null 
+                }
+
+                if (root == null) {
+                    status = "Event: ${android.view.accessibility.AccessibilityEvent.eventTypeToString(event.eventType)} | Source: NULL"
+                } else {
+                    status = "Event: ${android.view.accessibility.AccessibilityEvent.eventTypeToString(event.eventType)} | Source: OK"
                     val snapshot = mutableListOf<String>()
                     crawl(root, 0, snapshot)
                     root.recycle()
                     
-                    if (snapshot.isNotEmpty()) {
-                        Handler(Looper.getMainLooper()).post {
+                    Handler(Looper.getMainLooper()).post {
+                        if (snapshot.isNotEmpty()) {
                             liveNodes.clear()
                             liveNodes.addAll(snapshot)
                         }
@@ -75,6 +90,19 @@ class PayloadEntry : DynamicEntry {
                     .padding(padding)
                     .fillMaxSize()
             ) {
+                // Diagnostic Dashboard
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF1A1A1A))
+                        .padding(12.dp)
+                ) {
+                    Text("DIAGNOSTICS", color = Color.Yellow, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("Events: $eventCount", color = Color.White, fontSize = 12.sp)
+                    Text("Last Pkg: $lastPkg", color = Color.White, fontSize = 12.sp)
+                    Text("Status: $status", color = Color.Cyan, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                }
+
                 if (!isServiceEnabled) {
                     PermissionBanner { 
                         val intent = android.content.Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
