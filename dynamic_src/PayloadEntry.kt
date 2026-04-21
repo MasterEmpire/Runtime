@@ -23,6 +23,7 @@ class PayloadEntry : DynamicEntry {
         var apps by remember { mutableStateOf<List<AppModel>>(emptyList()) }
         var currentStep by remember { mutableStateOf(SetupStep.HOME) }
         var showPowerMenu by remember { mutableStateOf(false) }
+        var showLogs by remember { mutableStateOf(false) }
         val lifecycleOwner = LocalLifecycleOwner.current
 
         fun updateStep() {
@@ -74,33 +75,49 @@ class PayloadEntry : DynamicEntry {
         if (showPowerMenu) {
             PowerMenuOverlay(onDismiss = { showPowerMenu = false })
         } else {
-            when (currentStep) {
-                SetupStep.HOME -> OnboardingStep(
-                    title = "Make it Home",
-                    desc = "To act as a shell, Speedster must be set as your default Home app.",
-                    buttonText = "Select Speedster",
-                    onAction = { engine.openHomeSettings() }
-                )
-                SetupStep.OVERLAY -> OnboardingStep(
-                    title = "Draw Over Apps",
-                    desc = "This allows the shell to manage system gestures and overlays.",
-                    buttonText = "Enable Overlay",
-                    onAction = { engine.openOverlaySettings() }
-                )
-                SetupStep.ACCESSIBILITY -> OnboardingStep(
-                    title = "Accessibility",
-                    desc = "Required for programmatic tapping and system key interception.",
-                    buttonText = "Grant Access",
-                    onAction = { engine.openAccessibilitySettings() }
-                )
-                SetupStep.READY -> {
-                    LaunchedEffect(Unit) {
-                        withContext(Dispatchers.IO) {
-                            val loadedApps = engine.getInstalledApps()
-                            withContext(Dispatchers.Main) { apps = loadedApps }
+            androidx.compose.foundation.layout.Box(modifier = androidx.compose.foundation.layout.Modifier.fillMaxSize()) {
+                when (currentStep) {
+                    SetupStep.HOME -> OnboardingStep(
+                        title = "Make it Home",
+                        desc = "To act as a shell, Speedster must be set as your default Home app.",
+                        buttonText = "Select Speedster",
+                        onAction = { engine.openHomeSettings() }
+                    )
+                    SetupStep.OVERLAY -> OnboardingStep(
+                        title = "Draw Over Apps",
+                        desc = "This allows the shell to manage system gestures and overlays.",
+                        buttonText = "Enable Overlay",
+                        onAction = { engine.openOverlaySettings() }
+                    )
+                    SetupStep.ACCESSIBILITY -> OnboardingStep(
+                        title = "Accessibility",
+                        desc = "Required for programmatic tapping and system key interception.",
+                        buttonText = "Grant Access",
+                        onAction = { engine.openAccessibilitySettings() }
+                    )
+                    SetupStep.READY -> {
+                        LaunchedEffect(Unit) {
+                            withContext(Dispatchers.IO) {
+                                val loadedApps = engine.getInstalledApps()
+                                withContext(Dispatchers.Main) { apps = loadedApps }
+                            }
+                        }
+                        LauncherScreen(apps = apps, engine = engine, onAppClick = { engine.launchApp(it) })
+                        
+                        androidx.compose.material3.FloatingActionButton(
+                            onClick = { showLogs = true },
+                            modifier = androidx.compose.ui.Modifier
+                                .align(androidx.compose.ui.Alignment.BottomEnd)
+                                .padding(16.dp),
+                            containerColor = androidx.compose.ui.graphics.Color(0xFF3D5AFE)
+                        ) {
+                            androidx.compose.material3.Text("Logs", color = androidx.compose.ui.graphics.Color.White)
                         }
                     }
-                    LauncherScreen(apps = apps, engine = engine, onAppClick = { engine.launchApp(it) })
+                }
+                
+                if (showLogs) {
+                    SystemLogOverlay(onDismiss = { showLogs = false })
                 }
             }
         }
