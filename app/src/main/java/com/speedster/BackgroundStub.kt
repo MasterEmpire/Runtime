@@ -5,6 +5,18 @@ import android.content.Intent
 import android.os.IBinder
 
 class BackgroundStub : Service() {
+    override fun onCreate() {
+        super.onCreate()
+        DynamicEntry.activeBackgroundService = this
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (DynamicEntry.activeBackgroundService === this) {
+            DynamicEntry.activeBackgroundService = null
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
