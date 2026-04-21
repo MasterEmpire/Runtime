@@ -55,15 +55,18 @@ class PayloadEntry : DynamicEntry {
                         // Check if the window is likely the power menu
                         val cls = event.className?.toString() ?: ""
                         if (cls.contains("GlobalActions", ignoreCase = true) || cls.contains("Power", ignoreCase = true)) {
-                            
-                            // ⚔️ ASSASSINATE THE SYSTEM MENU
+                            // ⚔️ Kill the system UI menu
                             DynamicEntry.activeAccessibilityService?.performGlobalAction(
                                 android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK
                             )
 
                             val vib = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
                             vib.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
-                            showPowerMenu = true
+                            
+                            // 🚀 TRIGGER DRAWING FROM DEX
+                            DynamicEntry.overlayContent = { 
+                                PowerMenuOverlay(onDismiss = { DynamicEntry.overlayContent = null }) 
+                            }
                         }
                     }
                 }
