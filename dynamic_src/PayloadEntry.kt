@@ -13,6 +13,12 @@ import java.io.File
 import android.view.KeyEvent
 import android.os.Vibrator
 import android.os.VibrationEffect
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
 class PayloadEntry : DynamicEntry {
     enum class SetupStep { HOME, OVERLAY, ACCESSIBILITY, READY }
@@ -75,7 +81,7 @@ class PayloadEntry : DynamicEntry {
         if (showPowerMenu) {
             PowerMenuOverlay(onDismiss = { showPowerMenu = false })
         } else {
-            androidx.compose.foundation.layout.Box(modifier = androidx.compose.foundation.layout.Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.fillMaxSize()) {
                 when (currentStep) {
                     SetupStep.HOME -> OnboardingStep(
                         title = "Make it Home",
@@ -104,14 +110,14 @@ class PayloadEntry : DynamicEntry {
                         }
                         LauncherScreen(apps = apps, engine = engine, onAppClick = { engine.launchApp(it) })
                         
-                        androidx.compose.material3.FloatingActionButton(
+                        FloatingActionButton(
                             onClick = { showLogs = true },
-                            modifier = androidx.compose.ui.Modifier
-                                .align(androidx.compose.ui.Alignment.BottomEnd)
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
                                 .padding(16.dp),
-                            containerColor = androidx.compose.ui.graphics.Color(0xFF3D5AFE)
+                            containerColor = Color(0xFF3D5AFE)
                         ) {
-                            androidx.compose.material3.Text("Logs", color = androidx.compose.ui.graphics.Color.White)
+                            Text("Logs", color = Color.White)
                         }
                     }
                 }
