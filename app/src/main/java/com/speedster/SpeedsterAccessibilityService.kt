@@ -12,8 +12,8 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.SavedStateRegistryController
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.*
-import androidx.lifecycle.ViewTreeLifecycleOwner
-import androidx.savedstate.ViewTreeSavedStateRegistryOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import androidx.compose.runtime.Composable
 
 class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, SavedStateRegistryOwner {
@@ -64,8 +64,8 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Sa
         if (overlayView != null) return
         overlayView = ComposeView(this).apply {
             setContent { content() }
-            ViewTreeLifecycleOwner.set(this, this@SpeedsterAccessibilityService)
-            ViewTreeSavedStateRegistryOwner.set(this, this@SpeedsterAccessibilityService)
+            setViewTreeLifecycleOwner(this@SpeedsterAccessibilityService)
+            setViewTreeSavedStateRegistryOwner(this@SpeedsterAccessibilityService)
         }
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
