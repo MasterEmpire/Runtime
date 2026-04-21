@@ -132,6 +132,11 @@ fun SystemLogOverlay(onDismiss: () -> Unit) {
                 Text("System Logs", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Row {
                     Button(
+                        onClick = { logs.clear() },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE74C3C))
+                    ) { Text("Clear") }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
                         onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             clipboard.setPrimaryClip(ClipData.newPlainText("logs", logs.joinToString("\n")))
