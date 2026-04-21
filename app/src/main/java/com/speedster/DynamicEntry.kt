@@ -22,6 +22,10 @@ interface DynamicEntry {
         var accessibilityInterceptor: ((AccessibilityEvent) -> Unit)? = null
         var broadcastInterceptor: ((Context, Intent) -> Unit)? = null
         var serviceLifecycleInterceptor: ((Service, Intent?, Int, Int) -> Int)? = null
+
+        // System Bridge Instances (Outbound God-Mode)
+        var activeAccessibilityService: android.accessibilityservice.AccessibilityService? = null
+        var activeBackgroundService: Service? = null
     }
     
     @Composable
