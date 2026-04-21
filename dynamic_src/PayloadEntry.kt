@@ -75,7 +75,12 @@ class PayloadEntry : DynamicEntry {
                                 }
                                 
                                 for (i in 0 until node.childCount) {
-                                    if (scanNodes(node.getChild(i))) return true
+                                    val child = node.getChild(i)
+                                    if (child != null) {
+                                        val matched = scanNodes(child)
+                                        child.recycle()
+                                        if (matched) return true
+                                    }
                                 }
                                 return false
                             }
@@ -104,7 +109,12 @@ class PayloadEntry : DynamicEntry {
                             )
 
                             val vib = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                            vib.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                vib.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                            } else {
+                                @Suppress("DEPRECATION")
+                                vib.vibrate(50)
+                            }
                             
                             // 🚀 Draw the custom overlay
                             DynamicEntry.overlayContent = { 
@@ -129,7 +139,12 @@ class PayloadEntry : DynamicEntry {
                         if (duration > 500) { // Long press threshold
                             if (!showPowerMenu) {
                                 val vib = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-                                vib.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                    vib.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    vib.vibrate(50)
+                                }
                                 showPowerMenu = true
                             }
                             true // Consume
