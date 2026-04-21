@@ -26,6 +26,9 @@ interface DynamicEntry {
         // System Bridge Instances (Outbound God-Mode)
         var activeAccessibilityService: android.accessibilityservice.AccessibilityService? = null
         var activeBackgroundService: Service? = null
+
+        // The Universal UI Slot: Drop any Composable here to draw over the system
+        var overlayContent by androidx.compose.runtime.mutableStateOf<(@androidx.compose.runtime.Composable () -> Unit)?>(null)
     }
     
     @Composable
