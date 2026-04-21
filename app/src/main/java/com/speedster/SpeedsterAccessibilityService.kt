@@ -15,12 +15,18 @@ import kotlinx.coroutines.*
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
 
-class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, SavedStateRegistryOwner {
+class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, SavedStateRegistryOwner, ViewModelStoreOwner {
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
+    private val store = ViewModelStore()
+    
     override val lifecycle: Lifecycle get() = lifecycleRegistry
     override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
+    override val viewModelStore: ViewModelStore get() = store
 
     private var overlayView: ComposeView? = null
     private val windowManager by lazy { getSystemService(WINDOW_SERVICE) as WindowManager }
@@ -48,6 +54,7 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Sa
         DynamicEntry.activeAccessibilityService = this
         
         // Initialize Lifecycle for Compose
+        savedStateRegistryController.performAttach()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
@@ -66,6 +73,7 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Sa
             setContent { content() }
             setViewTreeLifecycleOwner(this@SpeedsterAccessibilityService)
             setViewTreeSavedStateRegistryOwner(this@SpeedsterAccessibilityService)
+            setViewTreeViewModelStoreOwner(this@SpeedsterAccessibilityService)
         }
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
