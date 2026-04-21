@@ -8,6 +8,8 @@ import android.content.Intent
 import android.app.Service
 import java.io.File
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 interface DynamicEntry {
     companion object {
