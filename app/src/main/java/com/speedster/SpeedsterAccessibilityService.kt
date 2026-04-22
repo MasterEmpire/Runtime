@@ -73,33 +73,31 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Vi
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
 
         scope.launch {
-            // Watch for both content changes AND touch property changes
             combine(
                 snapshotFlow { DynamicEntry.overlayContent },
-                snapshotFlow { DynamicEntry.isOverlayTouchable },
+                snapshotFlow { DynamicEntry.overlayConfig },
                 ::Pair
-            ).collect { (content, touchable) ->
-                if (content != null) updateOverlay(content, touchable) else hideOverlay()
+            ).collect { (content, config) ->
+                if (content != null) updateOverlay(content, config) else hideOverlay()
             }
         }
     }
 
-    // Helper for the combine function
     private fun <T1, T2, R> combine(f1: kotlinx.coroutines.flow.Flow<T1>, f2: kotlinx.coroutines.flow.Flow<T2>, transform: (T1, T2) -> R): kotlinx.coroutines.flow.Flow<R> = 
         kotlinx.coroutines.flow.combine(f1, f2, transform)
 
-    private fun updateOverlay(content: @Composable () -> Unit, touchable: Boolean) {
+    private fun updateOverlay(content: @Composable () -> Unit, config: DynamicEntry.OverlayConfig) {
         val params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
+            config.width,
+            config.height,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            config.flags,
             PixelFormat.TRANSLUCENT
-        )
-
-        // If NOT touchable, we add the flag that makes touches pass THROUGH
-        if (!touchable) {
-            params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        ).apply {
+            gravity = config.gravity
+            alpha = config.alpha
+            x = config.x
+            y = config.y
         }
 
         if (overlayView == null) {
