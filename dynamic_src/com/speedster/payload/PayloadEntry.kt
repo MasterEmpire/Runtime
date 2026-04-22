@@ -55,7 +55,7 @@ class PayloadEntry : DynamicEntry {
                 val pkg = event.packageName?.toString() ?: ""
                 if (pkg.contains("settings")) {
                     if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-                        DynamicEntry.log("🪟 WINDOW LOADED: ${event.className?.substringAfterLast(".")}")
+                        DynamicEntry.log("🪟 WINDOW LOADED: ${event.className?.toString()?.substringAfterLast(".")}")
                         DynamicEntry.activeAccessibilityService?.rootInActiveWindow?.let { dumpNode(it, 0) }
                     } else if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
                         val src = event.source
@@ -185,7 +185,7 @@ class PayloadEntry : DynamicEntry {
         if (node == null) return
         val id = node.viewIdResourceName?.substringAfter("id/") ?: ""
         val text = node.text?.toString() ?: node.contentDescription?.toString() ?: ""
-        val cls = node.className?.substringAfterLast(".") ?: ""
+        val cls = node.className?.toString()?.substringAfterLast(".") ?: ""
         
         if (id.isNotEmpty() || text.isNotBlank()) {
             val indent = "-".repeat(depth)
