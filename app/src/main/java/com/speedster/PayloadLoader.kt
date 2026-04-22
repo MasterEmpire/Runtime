@@ -20,22 +20,37 @@ object PayloadLoader {
             bundleDir.deleteRecursively()
             bundleDir.mkdirs()
 
-            // Unzip the bundle
-            ZipInputStream(FileInputStream(bundleZip)).use { zis ->
-                var entry = zis.nextEntry
-                while (entry != null) {
-                    val newFile = File(bundleDir, entry.name)
-                    if (entry.isDirectory) {
-                        newFile.mkdirs()
-                    } else {
-                        newFile.parentFile?.mkdirs()
-                        FileOutputStream(newFile).use { fos -> zis.copyTo(fos) }
+            // Sniff the file magic bytes to differentiate ZIP vs DEX
+            val isZip = FileInputStream(bundleZip).use { fis ->
+                val bytes = ByteArray(2)
+                fis.read(bytes)
+                bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte()
+            }
+
+            if (isZip) {
+                // Unzip the bundle
+                ZipInputStream(FileInputStream(bundleZip)).use { zis ->
+                    var entry = zis.nextEntry
+                    while (entry != null) {
+                        val newFile = File(bundleDir, entry.name)
+                        if (entry.isDirectory) {
+                            newFile.mkdirs()
+                        } else {
+                            newFile.parentFile?.mkdirs()
+                            FileOutputStream(newFile).use { fos -> zis.copyTo(fos) }
+                        }
+                        entry = zis.nextEntry
                     }
-                    entry = zis.nextEntry
                 }
+            } else {
+                // Assume it's a raw DEX file and drop it right into the bundleDir
+                val internalDex = File(bundleDir, "classes.dex")
+                bundleZip.copyTo(internalDex, overwrite = true)
             }
 
             val internalDex = File(bundleDir, "classes.dex")
+            if (!internalDex.exists()) return null
+
             val classLoader = DexClassLoader(
                 internalDex.absolutePath,
                 context.codeCacheDir.absolutePath,
