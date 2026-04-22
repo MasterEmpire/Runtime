@@ -19,13 +19,11 @@ import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 
-class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, SavedStateRegistryOwner, ViewModelStoreOwner {
+class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, ViewModelStoreOwner {
     private val lifecycleRegistry = LifecycleRegistry(this)
-    private val savedStateRegistryController = SavedStateRegistryController.create(this)
     private val store = ViewModelStore()
     
     override val lifecycle: Lifecycle get() = lifecycleRegistry
-    override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
     override val viewModelStore: ViewModelStore get() = store
 
     private var overlayView: ComposeView? = null
@@ -34,9 +32,8 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Sa
 
     override fun onCreate() {
         super.onCreate()
-        savedStateRegistryController.performAttach()
+        DynamicEntry.log("🛠️ SERVICE: onCreate triggered")
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
-        savedStateRegistryController.performRestore(null)
     }
 
     override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) {
@@ -59,6 +56,7 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Sa
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        DynamicEntry.log("✅ SERVICE: Connected! Global Instance SET.")
         DynamicEntry.activeAccessibilityService = this
         
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
@@ -77,7 +75,7 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Sa
         overlayView = ComposeView(themeContext).apply {
             setContent { content() }
             setViewTreeLifecycleOwner(this@SpeedsterAccessibilityService)
-            setViewTreeSavedStateRegistryOwner(this@SpeedsterAccessibilityService)
+            // Removed SavedStateRegistryOwner - not supported in Services
             setViewTreeViewModelStoreOwner(this@SpeedsterAccessibilityService)
         }
         val params = WindowManager.LayoutParams(
