@@ -62,17 +62,29 @@ fun LobbyScreen(onPayloadLoaded: (DynamicEntry) -> Unit) {
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
             isLoading = true
-            val tempFile = File(context.cacheDir, "temp.dex")
-            context.contentResolver.openInputStream(it)?.use { input ->
-                FileOutputStream(tempFile).use { output -> input.copyTo(output) }
+            thread {
+                var loaded: DynamicEntry? = null
+                try {
+                    val tempFile = File(context.cacheDir, "manual_payload.tmp")
+                    context.contentResolver.openInputStream(it)?.use { input ->
+                        FileOutputStream(tempFile).use { output -> input.copyTo(output) }
+                    }
+                    loaded = PayloadLoader.loadPayload(context, tempFile)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    if (loaded != null) {
+                        context.getSharedPreferences("speedster_prefs", android.content.Context.MODE_PRIVATE)
+                            .edit().putBoolean("has_payload", true).apply()
+                        onPayloadLoaded(loaded)
+                    } else {
+                        android.widget.Toast.makeText(context, "Injection Failed: Invalid DEX/ZIP or missing PayloadEntry class", android.widget.Toast.LENGTH_LONG).show()
+                    }
+                    isLoading = false
+                }
             }
-            val loaded = PayloadLoader.loadPayload(context, tempFile)
-            if (loaded != null) {
-                context.getSharedPreferences("speedster_prefs", android.content.Context.MODE_PRIVATE)
-                    .edit().putBoolean("has_payload", true).apply()
-                onPayloadLoaded(loaded)
-            }
-            isLoading = false
         }
     }
 
