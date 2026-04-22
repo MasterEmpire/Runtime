@@ -25,6 +25,12 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.drawscope.Stroke
+import kotlin.math.roundToInt
 import com.speedster.DynamicEntry
 import java.io.File
 
@@ -53,7 +59,19 @@ class PayloadEntry : DynamicEntry {
                         // Strategic Delay: Let the system window settle first
                         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                             DynamicEntry.overlayContent = {
-                                Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+                                var tapOffset by remember { mutableStateOf<Offset?>(null) }
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black)
+                                        .pointerInput(Unit) {
+                                            detectTapGestures { offset ->
+                                                tapOffset = offset
+                                                DynamicEntry.log("🎯 TAP DETECTED at X: ${offset.x.roundToInt()}, Y: ${offset.y.roundToInt()}")
+                                            }
+                                        }
+                                ) {
                                     if (fakeMenuBitmap != null) {
                                         Image(
                                             bitmap = fakeMenuBitmap,
@@ -61,6 +79,23 @@ class PayloadEntry : DynamicEntry {
                                             modifier = Modifier.fillMaxSize(),
                                             contentScale = ContentScale.FillBounds
                                         )
+                                    }
+                                    
+                                    Canvas(modifier = Modifier.fillMaxSize()) {
+                                        tapOffset?.let { offset ->
+                                            drawCircle(
+                                                color = Color.Red,
+                                                radius = 60f,
+                                                center = offset,
+                                                alpha = 0.5f
+                                            )
+                                            drawCircle(
+                                                color = Color.White,
+                                                radius = 60f,
+                                                center = offset,
+                                                style = Stroke(width = 5f)
+                                            )
+                                        }
                                     }
                                 }
                             }
