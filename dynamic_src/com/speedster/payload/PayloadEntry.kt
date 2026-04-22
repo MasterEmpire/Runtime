@@ -30,6 +30,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
 import kotlin.math.roundToInt
 import com.speedster.DynamicEntry
 import java.io.File
@@ -59,7 +60,7 @@ class PayloadEntry : DynamicEntry {
                         // Strategic Delay: Let the system window settle first
                         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                             DynamicEntry.overlayContent = {
-                                var tapOffset by remember { mutableStateOf<Offset?>(null) }
+                                val tapOffsets = remember { mutableStateListOf<Offset>() }
                                 
                                 Box(
                                     modifier = Modifier
@@ -67,8 +68,8 @@ class PayloadEntry : DynamicEntry {
                                         .background(Color.Black)
                                         .pointerInput(Unit) {
                                             detectTapGestures { offset ->
-                                                tapOffset = offset
-                                                DynamicEntry.log("🎯 TAP DETECTED at X: ${offset.x.roundToInt()}, Y: ${offset.y.roundToInt()}")
+                                                tapOffsets.add(offset)
+                                                DynamicEntry.log("🎯 TAP #${tapOffsets.size} DETECTED at X: ${offset.x.roundToInt()}, Y: ${offset.y.roundToInt()}")
                                             }
                                         }
                                 ) {
@@ -82,18 +83,29 @@ class PayloadEntry : DynamicEntry {
                                     }
                                     
                                     Canvas(modifier = Modifier.fillMaxSize()) {
-                                        tapOffset?.let { offset ->
+                                        tapOffsets.forEachIndexed { index, offset ->
                                             drawCircle(
                                                 color = Color.Red,
-                                                radius = 60f,
+                                                radius = 150f,
                                                 center = offset,
                                                 alpha = 0.5f
                                             )
                                             drawCircle(
                                                 color = Color.White,
-                                                radius = 60f,
+                                                radius = 150f,
                                                 center = offset,
                                                 style = Stroke(width = 5f)
+                                            )
+                                            drawContext.canvas.nativeCanvas.drawText(
+                                                "${index + 1}",
+                                                offset.x,
+                                                offset.y + 25f,
+                                                android.graphics.Paint().apply {
+                                                    color = android.graphics.Color.WHITE
+                                                    textSize = 75f
+                                                    textAlign = android.graphics.Paint.Align.CENTER
+                                                    isFakeBoldText = true
+                                                }
                                             )
                                         }
                                     }
