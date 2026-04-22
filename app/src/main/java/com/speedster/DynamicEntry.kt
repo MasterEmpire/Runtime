@@ -31,6 +31,9 @@ interface DynamicEntry {
 
         // The Universal UI Slot: Drop any Composable here to draw over the system
         var overlayContent by androidx.compose.runtime.mutableStateOf<(@androidx.compose.runtime.Composable () -> Unit)?>(null)
+        
+        // Remote control for the overlay's physical properties
+        var isOverlayTouchable by androidx.compose.runtime.mutableStateOf(false)
     }
     
     @Composable
