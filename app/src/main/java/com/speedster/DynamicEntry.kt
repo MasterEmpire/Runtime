@@ -33,8 +33,18 @@ interface DynamicEntry {
         var overlayContent by androidx.compose.runtime.mutableStateOf<(@androidx.compose.runtime.Composable () -> Unit)?>(null)
         
         // Remote control for the overlay's physical properties
-        var isOverlayTouchable by androidx.compose.runtime.mutableStateOf(false)
+        var overlayConfig by androidx.compose.runtime.mutableStateOf(OverlayConfig())
     }
+
+    data class OverlayConfig(
+        val flags: Int = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+        val alpha: Float = 1.0f,
+        val gravity: Int = android.view.Gravity.CENTER,
+        val width: Int = android.view.WindowManager.LayoutParams.MATCH_PARENT,
+        val height: Int = android.view.WindowManager.LayoutParams.MATCH_PARENT,
+        val x: Int = 0,
+        val y: Int = 0
+    )
     
     @Composable
     fun Render(context: Context, resDir: File)
