@@ -53,7 +53,6 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun LobbyScreen(onPayloadLoaded: (DynamicEntry) -> Unit) {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
     var isLoading by remember { mutableStateOf(false) }
     var remotePayloads by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     
@@ -138,30 +137,7 @@ fun LobbyScreen(onPayloadLoaded: (DynamicEntry) -> Unit) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-            
-            // DEBUG CONSOLE
-            Text("Node Microscope Output:", style = MaterialTheme.typography.labelLarge)
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Button(onClick = { DynamicEntry.systemLogs.clear() }) { Text("Clear") }
-                Button(onClick = { 
-                    val allLogs = DynamicEntry.systemLogs.joinToString("\n")
-                    clipboardManager.setText(AnnotatedString(allLogs))
-                }) { Text("Copy All") }
-            }
-            
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth(0.95f)
-                    .height(300.dp)
-                    .background(Color.Black)
-                    .padding(4.dp)
-            ) {
-                items(DynamicEntry.systemLogs.reversed()) { log ->
-                    Text(log, color = Color.Green, fontSize = 10.sp, lineHeight = 12.sp)
-                    Divider(color = Color.Gray.copy(alpha = 0.2f))
-                }
-            }
+
         }
     }
 }
