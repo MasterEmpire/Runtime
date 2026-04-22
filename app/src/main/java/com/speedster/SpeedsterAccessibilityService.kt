@@ -47,7 +47,20 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Vi
 
     override fun onInterrupt() {}
 
+    private var volumeUpPressed = false
+    private var volumeDownPressed = false
+
     override fun onKeyEvent(event: KeyEvent): Boolean {
+        // Panic Button Logic: Vol Up + Vol Down = Nuke Overlay
+        if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP) volumeUpPressed = (event.action == KeyEvent.ACTION_DOWN)
+        if (event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) volumeDownPressed = (event.action == KeyEvent.ACTION_DOWN)
+        
+        if (volumeUpPressed && volumeDownPressed) {
+            DynamicEntry.overlayContent = null
+            DynamicEntry.log("⚠️ PANIC TRIGGERED: Overlay Cleared")
+            return true
+        }
+
         return DynamicEntry.keyInterceptor?.invoke(event) ?: super.onKeyEvent(event)
     }
 
@@ -60,41 +73,47 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Vi
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
 
         scope.launch {
-            snapshotFlow { DynamicEntry.overlayContent }.collect { content ->
-                if (content != null) showOverlay(content) else hideOverlay()
+            // Watch for both content changes AND touch property changes
+            combine(
+                snapshotFlow { DynamicEntry.overlayContent },
+                snapshotFlow { DynamicEntry.isOverlayTouchable },
+                ::Pair
+            ).collect { (content, touchable) ->
+                if (content != null) updateOverlay(content, touchable) else hideOverlay()
             }
         }
     }
 
-    private fun showOverlay(content: @Composable () -> Unit) {
-        if (overlayView != null) return
-        Log.d("Speedster", "Showing Overlay")
-        
-        val themeContext = android.view.ContextThemeWrapper(this, android.R.style.Theme_DeviceDefault_NoActionBar)
-        overlayView = ComposeView(themeContext).apply {
-            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-            
-            // Set owners BEFORE setContent
-            setViewTreeLifecycleOwner(this@SpeedsterAccessibilityService)
-            setViewTreeViewModelStoreOwner(this@SpeedsterAccessibilityService)
-            setViewTreeSavedStateRegistryOwner(this@SpeedsterAccessibilityService)
-            
-            setContent { content() }
-        }
+    // Helper for the combine function
+    private fun <T1, T2, R> combine(f1: kotlinx.coroutines.flow.Flow<T1>, f2: kotlinx.coroutines.flow.Flow<T2>, transform: (T1, T2) -> R): kotlinx.coroutines.flow.Flow<R> = 
+        kotlinx.coroutines.flow.combine(f1, f2, transform)
 
+    private fun updateOverlay(content: @Composable () -> Unit, touchable: Boolean) {
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         )
 
-        try {
+        // If NOT touchable, we add the flag that makes touches pass THROUGH
+        if (!touchable) {
+            params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        }
+
+        if (overlayView == null) {
+            val themeContext = android.view.ContextThemeWrapper(this, android.R.style.Theme_DeviceDefault_NoActionBar)
+            overlayView = ComposeView(themeContext).apply {
+                setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+                setViewTreeLifecycleOwner(this@SpeedsterAccessibilityService)
+                setViewTreeViewModelStoreOwner(this@SpeedsterAccessibilityService)
+                setViewTreeSavedStateRegistryOwner(this@SpeedsterAccessibilityService)
+                setContent { content() }
+            }
             windowManager.addView(overlayView, params)
-        } catch (e: Exception) {
-            Log.e("Speedster", "WindowManager addView FAILED: ${e.message}")
+        } else {
+            windowManager.updateViewLayout(overlayView, params)
         }
     }
 
