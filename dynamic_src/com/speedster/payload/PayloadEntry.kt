@@ -9,21 +9,65 @@ import java.io.File
 
 class PayloadEntry : DynamicEntry {
     override @Composable fun Render(context: Context, resDir: File) {
+        val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+
         LaunchedEffect(Unit) {
-            DynamicEntry.log("🔬 Microscope Brain Initialized")
-            
-            // Clear any old overlays
+            DynamicEntry.log("🔬 Microscope Active. Trigger a window change!")
             DynamicEntry.overlayContent = null
             
             DynamicEntry.accessibilityInterceptor = { event ->
-                if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || 
-                    event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+                if (event.eventType == android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || 
+                    event.eventType == android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
                     
                     val root = DynamicEntry.activeAccessibilityService?.rootInActiveWindow
                     root?.let {
-                        DynamicEntry.log("--- Window Update: ${event.packageName} ---")
-                        inspectNode(it, 0)
+                        // We don't want to log our own app's nodes and create an infinite loop
+                        if (event.packageName != context.packageName) {
+                            inspectNode(it, 0)
+                        }
                     }
+                }
+            }
+        }
+
+        androidx.compose.foundation.layout.Column(
+            modifier = androidx.compose.ui.Modifier
+                .fillMaxSize()
+                .background(androidx.compose.ui.graphics.Color(0xFF000000))
+                .padding(16.dp)
+        ) {
+            androidx.compose.material3.Text("NODE MICROSCOPE LIVE", color = androidx.compose.ui.graphics.Color.Green, fontSize = 18.sp)
+            
+            androidx.compose.foundation.layout.Row(
+                modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceEvenly
+            ) {
+                androidx.compose.material3.Button(onClick = { DynamicEntry.systemLogs.clear() }) { 
+                    androidx.compose.material3.Text("Clear") 
+                }
+                androidx.compose.material3.Button(onClick = { 
+                    val allLogs = DynamicEntry.systemLogs.joinToString("\n")
+                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(allLogs))
+                }) { 
+                    androidx.compose.material3.Text("Copy Logs") 
+                }
+            }
+
+            androidx.compose.foundation.lazy.LazyColumn(
+                modifier = androidx.compose.ui.Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
+                items(DynamicEntry.systemLogs.asReversed()) { log ->
+                    androidx.compose.material3.Text(
+                        text = log,
+                        color = androidx.compose.ui.graphics.Color(0xFF00FF00),
+                        fontSize = 11.sp,
+                        lineHeight = 13.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                    androidx.compose.material3.HorizontalDivider(color = androidx.compose.ui.graphics.Color.DarkGray)
                 }
             }
         }
