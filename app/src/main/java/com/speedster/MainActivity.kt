@@ -100,7 +100,7 @@ fun LobbyScreen(onPayloadLoaded: (DynamicEntry) -> Unit) {
             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
         ) {
             Text(
-                text = if (isEnabled) "SYSTEM CONTROL: " + (if (isEnabled) "ACTIVE" else "DISABLED"),
+                text = "SYSTEM CONTROL: " + if (isEnabled) "ACTIVE" else "DISABLED",
                 color = Color.White,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                 style = MaterialTheme.typography.labelLarge
