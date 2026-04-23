@@ -105,6 +105,8 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Vi
             alpha = config.alpha
             x = config.x
             y = config.y
+            // This allows the overlay to receive insets even as a service window
+            flags = flags or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
         }
 
         if (overlayView == null) {
@@ -114,11 +116,25 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Vi
                 setViewTreeLifecycleOwner(this@SpeedsterAccessibilityService)
                 setViewTreeViewModelStoreOwner(this@SpeedsterAccessibilityService)
                 setViewTreeSavedStateRegistryOwner(this@SpeedsterAccessibilityService)
+                
+                // CRITICAL: Manually dispatch insets to Compose
+                setOnApplyWindowInsetsListener { v, insets ->
+                    v.onApplyWindowInsets(insets)
+                    insets
+                }
+                
                 setContent { content() }
             }
             windowManager.addView(overlayView, params)
         } else {
-            windowManager.updateViewLayout(overlayView, params)
+            // If the payload changed the 'type', we must recreate the view (Android limitation)
+            if (overlayView?.layoutParams is WindowManager.LayoutParams && 
+               (overlayView?.layoutParams as WindowManager.LayoutParams).type != config.type) {
+                hideOverlay()
+                updateOverlay(content, config)
+            } else {
+                windowManager.updateViewLayout(overlayView, params)
+            }
         }
     }
 
