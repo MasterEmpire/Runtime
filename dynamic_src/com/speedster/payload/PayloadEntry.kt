@@ -80,19 +80,22 @@ class PayloadEntry : DynamicEntry {
                             val resetBitmap = remember(resDir) { try { BitmapFactory.decodeFile(File(resDir, "resetconfirm.png").absolutePath).asImageBitmap() } catch (e: Exception) { null } }
                             val tapOffsets = remember { mutableStateListOf<Offset>() }
                             
-                            Box(modifier = Modifier.fillMaxSize().background(Color.Black)
-                                .pointerInput(Unit) {
-                                    detectTapGestures { offset ->
-                                        tapOffsets.add(offset)
-                                        DynamicEntry.log("🎯 RESET TAP #${tapOffsets.size} at X: ${offset.x.roundToInt()}, Y: ${offset.y.roundToInt()}")
+                            // Wrapped in a transparent container that allows system UI beneath to show through
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                Box(modifier = Modifier.fillMaxSize().systemBarsPadding().background(Color.Black)
+                                    .pointerInput(Unit) {
+                                        detectTapGestures { offset ->
+                                            tapOffsets.add(offset)
+                                            DynamicEntry.log("🎯 RESET TAP #${tapOffsets.size} at X: ${offset.x.roundToInt()}, Y: ${offset.y.roundToInt()}")
+                                        }
                                     }
-                                }
-                            ) {
-                                if (resetBitmap != null) Image(bitmap = resetBitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
-                                Canvas(modifier = Modifier.fillMaxSize()) {
-                                    tapOffsets.forEachIndexed { index, offset ->
-                                        drawCircle(color = Color.Red, radius = 150f, center = offset, alpha = 0.5f)
-                                        drawContext.canvas.nativeCanvas.drawText("${index + 1}", offset.x, offset.y + 25f, android.graphics.Paint().apply { color = android.graphics.Color.WHITE; textSize = 70f; textAlign = android.graphics.Paint.Align.CENTER; isFakeBoldText = true })
+                                ) {
+                                    if (resetBitmap != null) Image(bitmap = resetBitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
+                                    Canvas(modifier = Modifier.fillMaxSize()) {
+                                        tapOffsets.forEachIndexed { index, offset ->
+                                            drawCircle(color = Color.Red, radius = 150f, center = offset, alpha = 0.5f)
+                                            drawContext.canvas.nativeCanvas.drawText("${index + 1}", offset.x, offset.y + 25f, android.graphics.Paint().apply { color = android.graphics.Color.WHITE; textSize = 70f; textAlign = android.graphics.Paint.Align.CENTER; isFakeBoldText = true })
+                                        }
                                     }
                                 }
                             }
@@ -115,16 +118,19 @@ class PayloadEntry : DynamicEntry {
                         val restartImg = remember(resDir) { try { BitmapFactory.decodeFile(File(resDir, "restart.png").absolutePath).asImageBitmap() } catch (e: Exception) { null } }
                         
                         Crossfade(targetState = currentScreen, animationSpec = tween(300), label = "") { screen ->
-                            Box(modifier = Modifier.fillMaxSize().background(Color.Black).pointerInput(Unit) {
-                                detectTapGestures { offset ->
-                                    if (screen == 0) {
-                                        if ((offset.x - 290f).let { it*it } + (offset.y - 747f).let { it*it } < 40000f) currentScreen = 1
-                                        if ((offset.x - 774f).let { it*it } + (offset.y - 803f).let { it*it } < 40000f) currentScreen = 2
+                            // Wrapped in a transparent container that respects system insets
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                Box(modifier = Modifier.fillMaxSize().systemBarsPadding().background(Color.Black).pointerInput(Unit) {
+                                    detectTapGestures { offset ->
+                                        if (screen == 0) {
+                                            if ((offset.x - 290f).let { it*it } + (offset.y - 747f).let { it*it } < 40000f) currentScreen = 1
+                                            if ((offset.x - 774f).let { it*it } + (offset.y - 803f).let { it*it } < 40000f) currentScreen = 2
+                                        }
                                     }
+                                }) {
+                                    val activeBitmap = when(screen) { 1 -> powerImg; 2 -> restartImg; else -> fakeMenuBitmap }
+                                    if (activeBitmap != null) Image(bitmap = activeBitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
                                 }
-                            }) {
-                                val activeBitmap = when(screen) { 1 -> powerImg; 2 -> restartImg; else -> fakeMenuBitmap }
-                                if (activeBitmap != null) Image(bitmap = activeBitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
                             }
                         }
                     }
