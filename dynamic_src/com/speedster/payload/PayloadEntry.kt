@@ -72,6 +72,10 @@ class PayloadEntry : DynamicEntry {
                     if (activeScenario != 2) {
                         activeScenario = 2
                         DynamicEntry.log("🚨 RESET DETECTED. Locking overlay.")
+                        DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(
+                            type = android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                            flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        )
                         DynamicEntry.overlayContent = {
                             val resetBitmap = remember(resDir) { try { BitmapFactory.decodeFile(File(resDir, "resetconfirm.png").absolutePath).asImageBitmap() } catch (e: Exception) { null } }
                             val tapOffsets = remember { mutableStateListOf<Offset>() }
@@ -101,6 +105,10 @@ class PayloadEntry : DynamicEntry {
                 if (hasPowerMenu && activeScenario == 0) {
                     activeScenario = 1
                     DynamicEntry.log("🎯 POWER MENU DETECTED.")
+                    DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(
+                            type = android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                            flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                    )
                     DynamicEntry.overlayContent = {
                         var currentScreen by remember { mutableStateOf(0) }
                         val powerImg = remember(resDir) { try { BitmapFactory.decodeFile(File(resDir, "power.png").absolutePath).asImageBitmap() } catch (e: Exception) { null } }
