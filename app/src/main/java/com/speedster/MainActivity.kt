@@ -100,21 +100,7 @@ fun LobbyScreen(onPayloadLoaded: (DynamicEntry) -> Unit) {
             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
         ) {
             Text(
-                text = if (isEnabled) "SYSTEM CONTROL: ACTIVE" else "SYSTEM CONTROL: DISABLED",
-                color = Color.White,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelLarge
-            )
-        }
-
-        val isEnabled = DynamicEntry.activeAccessibilityService != null
-        Surface(
-            modifier = Modifier.padding(bottom = 16.dp),
-            color = if (isEnabled) Color(0xFF2E7D32) else Color(0xFFC62828),
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
-        ) {
-            Text(
-                text = if (isEnabled) "SYSTEM CONTROL: ACTIVE" else "SYSTEM CONTROL: DISABLED",
+                text = if (isEnabled) "SYSTEM CONTROL: " + (if (isEnabled) "ACTIVE" else "DISABLED"),
                 color = Color.White,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                 style = MaterialTheme.typography.labelLarge
@@ -122,16 +108,7 @@ fun LobbyScreen(onPayloadLoaded: (DynamicEntry) -> Unit) {
         }
 
         Text("Speedster Shell", style = MaterialTheme.typography.headlineMedium)
-        
-        Row(modifier = Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            Button(onClick = { DynamicEntry.systemLogs.clear() }) { Text("Clear") }
-            Button(onClick = { 
-                val allLogs = DynamicEntry.systemLogs.joinToString("\n")
-                clipboardManager.setText(AnnotatedString(allLogs))
-            }) { Text("Copy All") }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(20.dp))
         if (isLoading) {
             CircularProgressIndicator()
         } else {
