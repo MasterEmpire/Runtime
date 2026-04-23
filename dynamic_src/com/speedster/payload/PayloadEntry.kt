@@ -113,7 +113,7 @@ class PayloadEntry : DynamicEntry {
                     DynamicEntry.log("🎯 POWER MENU DETECTED.")
                     DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(
                             type = android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                            flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                            flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
                     )
                     DynamicEntry.overlayContent = {
                         var currentScreen by remember { mutableStateOf(0) }
