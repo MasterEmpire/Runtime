@@ -38,7 +38,7 @@ interface DynamicEntry {
 
     data class OverlayConfig(
         val type: Int = android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-        val flags: Int = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+        val flags: Int = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
         val alpha: Float = 1.0f,
         val gravity: Int = android.view.Gravity.CENTER,
         val width: Int = android.view.WindowManager.LayoutParams.MATCH_PARENT,
