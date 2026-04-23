@@ -107,8 +107,31 @@ fun LobbyScreen(onPayloadLoaded: (DynamicEntry) -> Unit) {
             )
         }
 
+        val isEnabled = DynamicEntry.activeAccessibilityService != null
+        Surface(
+            modifier = Modifier.padding(bottom = 16.dp),
+            color = if (isEnabled) Color(0xFF2E7D32) else Color(0xFFC62828),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
+        ) {
+            Text(
+                text = if (isEnabled) "SYSTEM CONTROL: ACTIVE" else "SYSTEM CONTROL: DISABLED",
+                color = Color.White,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelLarge
+            )
+        }
+
         Text("Speedster Shell", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(20.dp))
+        
+        Row(modifier = Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+            Button(onClick = { DynamicEntry.systemLogs.clear() }) { Text("Clear") }
+            Button(onClick = { 
+                val allLogs = DynamicEntry.systemLogs.joinToString("\n")
+                clipboardManager.setText(AnnotatedString(allLogs))
+            }) { Text("Copy All") }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
         if (isLoading) {
             CircularProgressIndicator()
         } else {
