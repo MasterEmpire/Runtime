@@ -37,8 +37,16 @@ interface DynamicEntry {
     }
 
     data class OverlayConfig(
+        // Universal Window Types:
+        // TYPE_ACCESSIBILITY_OVERLAY = Absolute Top (God Mode)
+        // TYPE_APPLICATION_OVERLAY = Contained Top (Appear on Top / Clips to Status Bar)
         val type: Int = android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+        
+        // Universal Flags:
+        // FLAG_NOT_FOCUSABLE = Pass touches through to background
+        // FLAG_LAYOUT_IN_SCREEN = Allow drawing behind system bars if needed
         val flags: Int = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+        
         val alpha: Float = 1.0f,
         val gravity: Int = android.view.Gravity.CENTER,
         val width: Int = android.view.WindowManager.LayoutParams.MATCH_PARENT,
