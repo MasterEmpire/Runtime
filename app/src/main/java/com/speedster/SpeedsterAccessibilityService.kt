@@ -105,8 +105,7 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Vi
             alpha = config.alpha
             x = config.x
             y = config.y
-            // This allows the overlay to receive insets even as a service window
-            flags = flags or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+            // Flags are now strictly passed from the Payload's config to avoid hardcoding
         }
 
         if (overlayView == null) {
