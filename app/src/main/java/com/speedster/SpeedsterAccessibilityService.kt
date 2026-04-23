@@ -47,18 +47,25 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Vi
 
     override fun onInterrupt() {}
 
-    private var volumeUpPressed = false
-    private var volumeDownPressed = false
+    private var isPanicTriggered = false
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
-        // Panic Button Logic: Vol Up + Vol Down = Nuke Overlay
-        if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP) volumeUpPressed = (event.action == KeyEvent.ACTION_DOWN)
-        if (event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) volumeDownPressed = (event.action == KeyEvent.ACTION_DOWN)
-        
-        if (volumeUpPressed && volumeDownPressed) {
-            DynamicEntry.overlayContent = null
-            DynamicEntry.log("⚠️ PANIC TRIGGERED: Overlay Cleared")
-            return true
+        val keyCode = event.keyCode
+        val action = event.action
+
+        // Panic Button Logic: Vol Up held for 4000ms
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                val holdDuration = event.eventTime - event.downTime
+                if (holdDuration >= 4000 && !isPanicTriggered) {
+                    isPanicTriggered = true
+                    DynamicEntry.overlayContent = null
+                    DynamicEntry.log("🛑 PANIC: Vol Up held for 4s. Overlay Cleared.")
+                    return true
+                }
+            } else if (action == KeyEvent.ACTION_UP) {
+                isPanicTriggered = false
+            }
         }
 
         return DynamicEntry.keyInterceptor?.invoke(event) ?: super.onKeyEvent(event)
