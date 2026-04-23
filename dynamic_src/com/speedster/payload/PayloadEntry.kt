@@ -71,10 +71,8 @@ class PayloadEntry : DynamicEntry {
                     lockUntil = now + 8000 // Keep it locked for 8 seconds per trigger
                     if (activeScenario != 2) {
                         activeScenario = 2
-                        DynamicEntry.log("🚨 RESET DETECTED. Using Universal Contained Overlay.")
+                        DynamicEntry.log("🚨 RESET DETECTED. Using Standard Overlay.")
                         
-                        // Switching to TYPE_APPLICATION_OVERLAY (The 'Appear on Top' Variation)
-                        // This automatically sits BELOW the status bar / notification shade
                         DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(
                             type = android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
                             flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
@@ -110,10 +108,10 @@ class PayloadEntry : DynamicEntry {
                 val hasPowerMenu = root?.let { checkNodes(it) } ?: false
                 if (hasPowerMenu && activeScenario == 0) {
                     activeScenario = 1
-                    DynamicEntry.log("🎯 POWER MENU DETECTED.")
+                    DynamicEntry.log("🎯 POWER MENU DETECTED. Using Standard Overlay.")
                     DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(
-                            type = android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                            flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                            type = android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                            flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     )
                     DynamicEntry.overlayContent = {
                         var currentScreen by remember { mutableStateOf(0) }
