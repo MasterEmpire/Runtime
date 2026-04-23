@@ -97,7 +97,7 @@ class SpeedsterAccessibilityService : AccessibilityService(), LifecycleOwner, Vi
         val params = WindowManager.LayoutParams(
             config.width,
             config.height,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            config.type,
             config.flags,
             PixelFormat.TRANSLUCENT
         ).apply {
